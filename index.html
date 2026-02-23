@@ -410,6 +410,52 @@ async function loadManuals(){
   }
 }
 
+/**
+ * Разбирает составную строку с номерами деталей вида:
+ * "(14) 070-011-411 (14А) 070-011-412 (14А1) 070-011-413"
+ * Возвращает массив объектов {code, number}
+ */
+function parseCompositeParts(partString) {
+  const result = [];
+  // Регулярное выражение ищет паттерн: (код) пробел номер
+  // Номер может содержать цифры и дефисы
+  const regex = /\(([^)]+)\)\s+([\d-]+)/g;
+  let match;
+  
+  while ((match = regex.exec(partString)) !== null) {
+    result.push({
+      code: match[1].trim(),  // Оригинальный код из скобок (14, 14А, 14А1, 6А и т.д.)
+      number: match[2].trim()
+    });
+  }
+  
+  return result;
+}
+
+/**
+ * Проверяет, содержит ли строка номер в скобках
+ * Возвращает объект с кодом и номером, если есть, иначе null
+ */
+function extractSingleCode(partString) {
+  const regex = /^\(([^)]+)\)\s+([\d-]+)$/;
+  const match = partString.match(regex);
+  if (match) {
+    return {
+      code: match[1].trim(),
+      number: match[2].trim()
+    };
+  }
+  return null;
+}
+
+/**
+ * Проверяет, является ли строка составной (содержит несколько номеров в скобках)
+ */
+function isCompositePart(partString) {
+  const matches = partString.match(/\([^)]+\)\s+[\d-]+/g);
+  return matches && matches.length > 1;
+}
+
 function renderManualGroups(){
   manualContainer.innerHTML="";
   [...new Set(manualsData.map(m=>m.name))].forEach(name=>{
@@ -444,36 +490,63 @@ function renderManualsByName(name){
     const image=block.querySelector(".clickable-image");
     image.onclick=()=>cont.style.display=cont.style.display==="flex"?"none":"flex";
 
-    manual.parts.forEach((part,i)=>{
-      const btn=document.createElement("div");
-      btn.className="btn";
-      btn.innerHTML=`<span>${i+1}</span><span class="detail-number">${part}</span>`;
+    // Обрабатываем каждую деталь
+    manual.parts.forEach((part, index) => {
+      // Проверяем, есть ли одиночный код в скобках
+      const singleCode = extractSingleCode(part);
       
-      // ИСПРАВЛЕННЫЙ ОБРАБОТЧИК КЛИКА
-      btn.onclick = (e) => {
-        // Проверяем, кликнули ли именно по номеру детали
-        const targetDetail = e.target.closest(".detail-number");
-        
-        if (targetDetail) {
-          e.stopPropagation(); // ОСТАНАВЛИВАЕМ ВСПЛЫТИЕ СОБЫТИЯ
-          const originalText = targetDetail.textContent;
-          navigator.clipboard.writeText(originalText).then(() => {
-            targetDetail.textContent = "Скопировано!";
-            setTimeout(() => targetDetail.textContent = originalText, 1200);
-          });
-          return;
-        }
-        
-        // Если кликнули не по номеру детали, а по другой части кнопки
-        toggleDetail(btn);
-        image.classList.add("highlight-image");
-        setTimeout(() => image.classList.remove("highlight-image"), 800);
-      };
-      
-      cont.appendChild(btn);
+      if (singleCode) {
+        // Случай: (6А) 000-021-408 - меняем метку на код из скобок
+        createPartButton(cont, singleCode.number, singleCode.code, image);
+      } else if (isCompositePart(part)) {
+        // Составная деталь с несколькими номерами
+        const parsedParts = parseCompositeParts(part);
+        parsedParts.forEach((parsedPart) => {
+          createPartButton(cont, parsedPart.number, parsedPart.code, image);
+        });
+      } else {
+        // Обычная деталь без скобок - используем порядковый номер
+        createPartButton(cont, part, (index + 1).toString(), image);
+      }
     });
+    
     manualContainer.appendChild(block);
   });
+}
+
+/**
+ * Создает кнопку для одной детали
+ * @param {HTMLElement} container - контейнер для кнопок
+ * @param {string} partNumber - номер детали
+ * @param {string} label - метка (оригинальный код из скобок или номер)
+ * @param {HTMLElement} image - элемент изображения для подсветки
+ */
+function createPartButton(container, partNumber, label, image) {
+  const btn = document.createElement("div");
+  btn.className = "btn";
+  btn.innerHTML = `<span>${label}</span><span class="detail-number">${partNumber}</span>`;
+  
+  btn.onclick = (e) => {
+    const targetDetail = e.target.closest(".detail-number");
+    
+    if (targetDetail) {
+      e.stopPropagation();
+      const originalText = targetDetail.textContent;
+      navigator.clipboard.writeText(originalText).then(() => {
+        targetDetail.textContent = "Скопировано!";
+        setTimeout(() => targetDetail.textContent = originalText, 1200);
+      });
+      return;
+    }
+    
+    toggleDetail(btn);
+    if (image) {
+      image.classList.add("highlight-image");
+      setTimeout(() => image.classList.remove("highlight-image"), 800);
+    }
+  };
+  
+  container.appendChild(btn);
 }
 
 function toggleDetail(btn){
@@ -513,7 +586,29 @@ searchInput.oninput=e=>{
   if(!v){ renderManualGroups(); return; }
   searchNav.style.display="flex";
   manualsData.forEach(m=>{
-    if(m.parts.some(p=>p.includes(v))){
+    // Проверяем, есть ли совпадение в обычных или составных деталях
+    let hasMatch = false;
+    
+    // Функция для проверки номера детали
+    const checkPart = (part) => {
+      // Проверяем одиночный код в скобках
+      const singleCode = extractSingleCode(part);
+      if (singleCode && singleCode.number.includes(v)) {
+        return true;
+      }
+      
+      // Проверяем составную деталь
+      if (isCompositePart(part)) {
+        const parsed = parseCompositeParts(part);
+        return parsed.some(p => p.number.includes(v));
+      }
+      
+      // Обычная деталь
+      return part.includes(v);
+    };
+    
+    if (m.parts.some(checkPart)) {
+      hasMatch = true;
       renderManualsByName(m.name);
       setTimeout(()=>{
         document.querySelectorAll(".detail-number").forEach(el=>{
