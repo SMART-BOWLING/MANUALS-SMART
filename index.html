@@ -251,23 +251,60 @@ header {
   background:#374151; 
 }
 
+/* ===== ОБНОВЛЕННАЯ ПАНЕЛЬ НАВИГАЦИИ ПОИСКА ===== */
 .search-nav-bottom {
   position:fixed;
   bottom:20px;
-  right:20px;
+  left:50%;
+  transform:translateX(-50%);
   display:none;
-  gap:6px;
+  gap:10px;
   z-index:1000;
+  background:#1f2937;
+  padding:8px 16px;
+  border-radius:40px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
 }
 
 .search-nav-bottom button {
-  background:#1f2937;
+  background:transparent;
   color:white;
   border:none;
-  padding:8px 12px;
+  width:44px;
+  height:44px;
   cursor:pointer;
-  font-size:16px;
-  border-radius:4px;
+  font-size:18px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:background 0.2s;
+}
+
+.search-nav-bottom button:hover {
+  background:#374151;
+}
+
+.search-nav-bottom button:active {
+  transform:scale(0.95);
+}
+
+/* Кнопка очистки поиска */
+#clearSearchBtn {
+  background:#dc143c;
+  color:white;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:18px;
+  transition:background 0.2s;
+}
+
+#clearSearchBtn:hover {
+  background:#b01030;
 }
 
 .shop-fab-left {
@@ -288,6 +325,34 @@ header {
 }
 
 .shop-fab-left:active { transform: scale(0.95); }
+
+/* ===== НОВАЯ КНОПКА СПРАВА СНИЗУ (ЦВЕТ ШАПКИ, СТРЕЛКА ВЛЕВО) ===== */
+.shop-fab-right {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 54px;
+  height: 54px;
+  background: #1f2937;  /* Цвет как у шапки сайта */
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2001;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: transform 0.2s;
+}
+
+.shop-fab-right:active { 
+  transform: scale(0.95); 
+}
+
+.shop-fab-right:hover {
+  background: #374151; /* Эффект при наведении как у шапки */
+}
 
 /* ===== ЭКРАН ЗАГРУЗКИ ===== */
 .loading-screen {
@@ -343,13 +408,21 @@ header {
 
 <div id="manualContainer"></div>
 
+<!-- ОБНОВЛЕННАЯ ПАНЕЛЬ НАВИГАЦИИ ПОИСКА С КНОПКОЙ ОЧИСТКИ -->
 <div class="search-nav-bottom" id="searchNav">
-  <button onclick="prevResult()">←</button>
-  <button onclick="nextResult()">→</button>
+  <button onclick="prevResult()" title="Предыдущая деталь"><i class="fa-solid fa-chevron-left"></i></button>
+  <button id="clearSearchBtn" onclick="clearSearch()" title="Очистить поиск"><i class="fa-solid fa-times"></i></button>
+  <button onclick="nextResult()" title="Следующая деталь"><i class="fa-solid fa-chevron-right"></i></button>
 </div>
 
+<!-- Левая кнопка (магазин) -->
 <div class="shop-fab-left" onclick="openShopSearch()">
   <i class="fa-solid fa-magnifying-glass"></i>
+</div>
+
+<!-- Новая правая кнопка (стрелка влево, функция как у логотипа) -->
+<div class="shop-fab-right" onclick="renderManualGroups()">
+  <i class="fa-solid fa-arrow-left"></i>
 </div>
 
 <script>
@@ -364,6 +437,7 @@ const searchNav=document.getElementById("searchNav");
 const manualContainer=document.getElementById("manualContainer");
 const searchInput=document.getElementById("searchInput");
 const loadingScreen=document.getElementById("loadingScreen");
+const clearSearchBtn=document.getElementById("clearSearchBtn");
 
 function openShopSearch() {
   const partNumber = prompt("Введите номер детали:", "");
@@ -579,13 +653,34 @@ function toggleDetail(btn){
   setTimeout(()=>info.classList.add("open"),10);
 }
 
-searchInput.oninput=e=>{
-  const v=e.target.value.trim();
-  searchResults=[]; currentIndex=0;
-  document.querySelectorAll(".search-highlight,.active-highlight").forEach(el=>el.classList.remove("search-highlight","active-highlight"));
-  if(!v){ renderManualGroups(); return; }
-  searchNav.style.display="flex";
-  manualsData.forEach(m=>{
+// Функция очистки поиска
+function clearSearch() {
+  searchInput.value = "";
+  searchResults = [];
+  currentIndex = 0;
+  document.querySelectorAll(".search-highlight,.active-highlight").forEach(el => 
+    el.classList.remove("search-highlight", "active-highlight")
+  );
+  renderManualGroups();
+  searchNav.style.display = "none";
+}
+
+searchInput.oninput = e => {
+  const v = e.target.value.trim();
+  searchResults = []; 
+  currentIndex = 0;
+  document.querySelectorAll(".search-highlight,.active-highlight").forEach(el => 
+    el.classList.remove("search-highlight", "active-highlight")
+  );
+  
+  if (!v) { 
+    renderManualGroups(); 
+    return; 
+  }
+  
+  searchNav.style.display = "flex";
+  
+  manualsData.forEach(m => {
     // Проверяем, есть ли совпадение в обычных или составных деталях
     let hasMatch = false;
     
@@ -610,19 +705,19 @@ searchInput.oninput=e=>{
     if (m.parts.some(checkPart)) {
       hasMatch = true;
       renderManualsByName(m.name);
-      setTimeout(()=>{
-        document.querySelectorAll(".detail-number").forEach(el=>{
-          if(el.textContent.includes(v)){
+      setTimeout(() => {
+        document.querySelectorAll(".detail-number").forEach(el => {
+          if (el.textContent.includes(v)) {
             el.classList.add("search-highlight");
-            el.parentElement.parentElement.style.display="flex";
+            el.parentElement.parentElement.style.display = "flex";
             searchResults.push(el);
           }
         });
-        if(searchResults[0]){
+        if (searchResults[0]) {
           searchResults[0].classList.add("active-highlight");
-          searchResults[0].scrollIntoView({behavior:"smooth",block:"center"});
+          searchResults[0].scrollIntoView({behavior: "smooth", block: "center"});
         }
-      },100);
+      }, 100);
     }
   });
 };
@@ -643,6 +738,7 @@ function prevResult(){
   searchResults[currentIndex].scrollIntoView({behavior:"smooth",block:"center"});
 }
 
+// Логотип также вызывает renderManualGroups
 document.querySelector(".logo").onclick=renderManualGroups;
 
 loadManuals();
