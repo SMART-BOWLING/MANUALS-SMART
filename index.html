@@ -354,14 +354,11 @@ header {
   background: #374151; /* Эффект при наведении как у шапки */
 }
 
-/* ===== ЭКРАН ЗАГРУЗКИ ===== */
+/* ===== ЭКРАН ЗАГРУЗКИ (НОВАЯ АНИМАЦИЯ) ===== */
 .loading-screen {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #1f2937;
+  inset: 0;
+  background: #1f2937;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -374,25 +371,44 @@ header {
   pointer-events: none;
 }
 
-.loading-logo {
-  width: 80px;
-  height: 80px;
-  animation: pulse 1.5s ease-in-out infinite;
+.logo-wrapper {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 0.7; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.7; }
+.glow-ring {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 100%;
+  background: conic-gradient(#dc143c, transparent 100%);
+  animation: spin 5s linear infinite;
+  filter: blur(20px);
+}
+
+.loading-screen img {
+  width: 120px;
+  z-index: 2;
+}
+
+@keyframes spin {
+  to { transform: rotate(365deg); }
 }
 </style>
 </head>
 
 <body>
 
-<!-- ЭКРАН ЗАГРУЗКИ -->
+<!-- ЭКРАН ЗАГРУЗКИ (НОВЫЙ ДИЗАЙН) -->
 <div class="loading-screen" id="loadingScreen">
-  <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Loading Logo" class="loading-logo">
+  <div class="logo-wrapper">
+    <div class="glow-ring"></div>
+    <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Loading Logo">
+  </div>
 </div>
 
 <header>
@@ -476,7 +492,7 @@ async function loadManuals(){
     // Скрываем экран загрузки после завершения
     setTimeout(() => {
       loadingScreen.classList.add('fade-out');
-    }, 300);
+    }, 500);
     
   } catch (error) {
     console.error('Ошибка загрузки:', error);
