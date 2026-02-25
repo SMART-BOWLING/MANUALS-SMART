@@ -421,7 +421,8 @@ header {
 </div>
 
 <header>
-  <div class="logo">
+  <!-- Логотип теперь ведет на указанную страницу -->
+  <div class="logo" onclick="window.location.href='https://smart-bowling.github.io/SMB/'">
     <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Logo">
   </div>
   <div class="site-name">MANUALS</div>
@@ -763,8 +764,8 @@ function prevResult(){
   searchResults[currentIndex].scrollIntoView({behavior:"smooth",block:"center"});
 }
 
-// Логотип также вызывает renderManualGroups
-document.querySelector(".logo").onclick=renderManualGroups;
+// Логотип теперь ведет на указанную страницу (изменено с renderManualGroups на переход по ссылке)
+// document.querySelector(".logo").onclick=renderManualGroups; // старая функция закомментирована
 
 loadManuals();
 </script>
