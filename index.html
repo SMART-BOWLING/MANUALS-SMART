@@ -683,10 +683,10 @@ function renderManualsByName(name){
   // Находим текущий мануал в данных
   const currentManual = manualsData.find(m => m.name === name);
   
-  // Кнопка MANUAL PDF с иконкой PDF
+  // Кнопка MANUAL PDF с иконкой PDF (теперь точно PDF!)
   const pdfButton = document.createElement("div");
   pdfButton.className = "pdf-top-button";
-  pdfButton.innerHTML = '<i class="fa-regular fa-file-pdf"></i> MANUAL PDF';
+  pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
   
   pdfButton.onclick = () => {
     if (currentManual && currentManual.pdf) {
