@@ -155,31 +155,6 @@ header {
   font-size:16px;
   font-weight:600;
   border-radius:6px 6px 0 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.refresh-icon {
-  width: 32px;
-  height: 32px;
-  background-color: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #1f2937;
-  font-size: 16px;
-  transition: transform 0.3s ease;
-}
-
-.refresh-icon:hover {
-  transform: rotate(180deg);
-}
-
-.refresh-icon:active {
-  transform: rotate(180deg) scale(0.95);
 }
 
 .top-image {
@@ -590,6 +565,12 @@ const SPREADSHEET_ID = '1v-R394u6sKzSdvmkh9qsbqhfkNZEi5lIXwo8BdT_lhQ';
 const MANUALS_RANGE = 'MANUALS!A:Z'; // Лист с мануалами и деталями
 const MANUAL_RANGE = 'MANUAL!A:B'; // Лист с PDF
 
+// Диапазоны для листов с изображениями
+const STORE_RANGE = 'STORE!A:D'; // Столбец A - номер детали, B - количество, D - изображение
+const BB_RANGE = 'BB!A:D';
+const KH_RANGE = 'KH!A:D';
+const SKYMALL_RANGE = 'SKYMALL!A:D';
+
 let manualsData = [];
 let stockData = {};
 let searchResults = [];
@@ -658,6 +639,9 @@ async function loadFromGoogleSheets() {
     const manualResponse = await fetch(manualUrl);
     const manualData_raw = await manualResponse.json();
     
+    // Загружаем данные из листов с изображениями
+    await loadStockData();
+    
     processSheetData(manualsData_raw.values, manualData_raw.values);
     
     renderManualGroups();
@@ -671,9 +655,110 @@ async function loadFromGoogleSheets() {
   }
 }
 
+async function loadStockData() {
+  try {
+    // Загружаем данные из листа STORE
+    const storeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${STORE_RANGE}?key=${API_KEY}`;
+    const storeResponse = await fetch(storeUrl);
+    const storeData = await storeResponse.json();
+    
+    // Загружаем данные из листа BB
+    const bbUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${BB_RANGE}?key=${API_KEY}`;
+    const bbResponse = await fetch(bbUrl);
+    const bbData = await bbResponse.json();
+    
+    // Загружаем данные из листа KH
+    const khUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${KH_RANGE}?key=${API_KEY}`;
+    const khResponse = await fetch(khUrl);
+    const khData = await khResponse.json();
+    
+    // Загружаем данные из листа SKYMALL
+    const skymallUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SKYMALL_RANGE}?key=${API_KEY}`;
+    const skymallResponse = await fetch(skymallUrl);
+    const skymallData = await skymallResponse.json();
+    
+    // Инициализируем stockData
+    stockData = {};
+    
+    // Обрабатываем данные из каждого листа
+    processStockSheet(storeData.values, 'STORE');
+    processStockSheet(bbData.values, 'BB');
+    processStockSheet(khData.values, 'KH');
+    processStockSheet(skymallData.values, 'SKYMALL');
+    
+  } catch (error) {
+    console.error('Ошибка загрузки данных складов:', error);
+    // В случае ошибки создаем демо-данные
+    generateDemoStockData();
+  }
+}
+
+function processStockSheet(rows, sheetName) {
+  if (!rows || rows.length === 0) return;
+  
+  // Первая строка - заголовки, пропускаем её
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[0]) continue; // Пропускаем пустые строки
+    
+    const partNumber = row[0].trim(); // Номер детали (столбец A)
+    const quantity = parseInt(row[1]) || 0; // Количество (столбец B)
+    const imageUrl = row[3] || ''; // Изображение (столбец D)
+    
+    // Создаем запись для детали, если её еще нет
+    if (!stockData[partNumber]) {
+      stockData[partNumber] = {
+        BB: { quantity: 0, location: '', image: '' },
+        KH: { quantity: 0, location: '', image: '' },
+        SKYMALL: { quantity: 0, location: '', image: '' },
+        STORE: { quantity: 0, location: '', image: '' }
+      };
+    }
+    
+    // Заполняем данные для конкретного листа
+    stockData[partNumber][sheetName] = {
+      quantity: quantity,
+      location: row[2] || '', // Столбец C - локация (если есть)
+      image: imageUrl
+    };
+  }
+}
+
+function generateDemoStockData() {
+  // Собираем все уникальные номера деталей
+  const allParts = new Set();
+  manualsData.forEach(manual => {
+    manual.parts.forEach(part => {
+      // Парсим составные детали
+      if (part.includes('(') && part.includes(')')) {
+        const matches = part.match(/\(([^)]+)\)\s+([\d-]+)/g);
+        if (matches) {
+          matches.forEach(match => {
+            const number = match.split(' ').pop();
+            allParts.add(number);
+          });
+        } else {
+          allParts.add(part);
+        }
+      } else {
+        allParts.add(part);
+      }
+    });
+  });
+  
+  // Создаем демо-данные для каждого клуба
+  allParts.forEach(part => {
+    stockData[part] = {
+      BB: { quantity: Math.floor(Math.random() * 5), location: 'Склад 1', image: '' },
+      KH: { quantity: Math.floor(Math.random() * 3), location: 'Склад 2', image: '' },
+      SKYMALL: { quantity: Math.floor(Math.random() * 4), location: 'Склад 3', image: '' },
+      STORE: { quantity: Math.floor(Math.random() * 2), location: 'Магазин', image: '' }
+    };
+  });
+}
+
 function processSheetData(manualsRows, manualRows) {
   manualsData = [];
-  stockData = {};
   
   if (!manualsRows || manualsRows.length === 0) return;
   
@@ -721,43 +806,6 @@ function processSheetData(manualsRows, manualRows) {
       }
     }
   }
-  
-  // Создаем демо-данные для stockData (так как их нет в таблице)
-  // В реальном проекте их нужно загружать из другого источника
-  generateDemoStockData();
-}
-
-function generateDemoStockData() {
-  // Собираем все уникальные номера деталей
-  const allParts = new Set();
-  manualsData.forEach(manual => {
-    manual.parts.forEach(part => {
-      // Парсим составные детали
-      if (part.includes('(') && part.includes(')')) {
-        const matches = part.match(/\(([^)]+)\)\s+([\d-]+)/g);
-        if (matches) {
-          matches.forEach(match => {
-            const number = match.split(' ').pop();
-            allParts.add(number);
-          });
-        } else {
-          allParts.add(part);
-        }
-      } else {
-        allParts.add(part);
-      }
-    });
-  });
-  
-  // Создаем демо-данные для каждого клуба
-  allParts.forEach(part => {
-    stockData[part] = {
-      BB: { quantity: Math.floor(Math.random() * 5), location: 'Склад 1', image: '' },
-      KH: { quantity: Math.floor(Math.random() * 3), location: 'Склад 2', image: '' },
-      SKYMALL: { quantity: Math.floor(Math.random() * 4), location: 'Склад 3', image: '' },
-      STORE: { quantity: Math.floor(Math.random() * 2), location: 'Магазин', image: '' }
-    };
-  });
 }
 
 function parseCompositeParts(partString) {
@@ -809,23 +857,6 @@ function renderManualGroups() {
   searchNav.style.display = "none";
 }
 
-// Функция для перезагрузки изображения
-function reloadImage(imgElement, imageUrl) {
-  if (!imgElement || !imageUrl) return;
-  
-  // Добавляем параметр timestamp, чтобы избежать кэширования
-  const timestamp = new Date().getTime();
-  const separator = imageUrl.includes('?') ? '&' : '?';
-  const newSrc = `${imageUrl}${separator}t=${timestamp}`;
-  
-  // Создаем новый объект Image для предзагрузки
-  const newImg = new Image();
-  newImg.onload = function() {
-    imgElement.src = newSrc;
-  };
-  newImg.src = newSrc;
-}
-
 function renderManualsByName(name) {
   manualContainer.innerHTML = "";
   
@@ -850,32 +881,14 @@ function renderManualsByName(name) {
   manualsData.filter(m => m.name === name).forEach(manual => {
     const block = document.createElement("div");
     block.className = "block";
-    
-    // Создаем заголовок с названием мануала и стрелкой обновления
-    const labelDiv = document.createElement("div");
-    labelDiv.className = "manual-label";
-    labelDiv.innerHTML = `
-      <span>${manual.name}</span>
-      <div class="refresh-icon" onclick="reloadImage(document.querySelector('.top-image[data-manual=\\'${manual.name}\\']'), '${manual.image}')">
-        <i class="fa-solid fa-rotate-right"></i>
-      </div>
+    block.innerHTML = `
+      <div class="manual-label">${manual.name}</div>
+      <img class="top-image clickable-image" src="${manual.image}" onerror="this.src='https://via.placeholder.com/400x200?text=No+Image'">
+      <div class="buttons-container"></div>
     `;
-    
-    const image = document.createElement("img");
-    image.className = "top-image clickable-image";
-    image.src = manual.image;
-    image.alt = manual.name;
-    image.setAttribute('data-manual', manual.name);
-    image.onerror = () => image.src = 'https://via.placeholder.com/400x200?text=No+Image';
-    
-    const cont = document.createElement("div");
-    cont.className = "buttons-container";
-    
+    const cont = block.querySelector(".buttons-container");
+    const image = block.querySelector(".clickable-image");
     image.onclick = () => cont.style.display = cont.style.display === "flex" ? "none" : "flex";
-    
-    block.appendChild(labelDiv);
-    block.appendChild(image);
-    block.appendChild(cont);
 
     manual.parts.forEach((part, index) => {
       const singleCode = extractSingleCode(part);
@@ -1046,9 +1059,6 @@ function prevResult() {
 
 // Загружаем данные при старте
 loadFromGoogleSheets();
-
-// Делаем функцию reloadImage глобальной
-window.reloadImage = reloadImage;
 </script>
 </body>
 </html>
