@@ -809,6 +809,8 @@ function handleGoogleSignIn(response) {
     picture: payload.picture
   };
   
+  console.log("Вошел пользователь:", currentUser.email);
+  
   // Проверяем доступ пользователя
   checkUserAccess(payload.email);
 }
@@ -825,29 +827,33 @@ async function checkUserAccess(email) {
       return;
     }
     
+    console.log("Все данные из таблицы:", data.values);
+    
     // Ищем email в колонке А (индекс 0)
-    const emailColumnIndex = 0;
     let found = false;
     let hasSiteLink = false;
     
-    console.log("Проверка доступа для email:", email);
-    console.log("Текущий URL сайта:", currentSiteUrl);
-    
     for (let i = 0; i < data.values.length; i++) {
       const row = data.values[i];
-      const rowEmail = row[emailColumnIndex] ? row[emailColumnIndex].toLowerCase().trim() : '';
+      const rowEmail = row[0] ? row[0].toLowerCase().trim() : '';
+      
+      console.log(`Строка ${i + 1}:`, row);
+      console.log(`Email в строке ${i + 1}:`, rowEmail);
       
       if (rowEmail === email.toLowerCase()) {
         found = true;
-        console.log("Email найден в строке", i + 1);
+        console.log("✅ Email найден в строке", i + 1);
         
         // Проверяем все колонки начиная с B (индекс 1)
         for (let j = 1; j < row.length; j++) {
           if (row[j]) {
             const cellValue = row[j].trim();
-            if (cellValue.includes(currentSiteUrl)) {
+            console.log(`  Колонка ${j + 1}:`, cellValue);
+            
+            // Проверяем, содержит ли ячейка ссылку на наш сайт
+            if (cellValue.includes('smart-bowling.github.io/MANUALS-SMART')) {
               hasSiteLink = true;
-              console.log("Найдена ссылка на сайт в колонке", j + 1);
+              console.log("  ✅ Найдена ссылка на сайт в колонке", j + 1);
               break;
             }
           }
@@ -857,6 +863,8 @@ async function checkUserAccess(email) {
     }
     
     if (found && hasSiteLink) {
+      console.log("✅ Доступ разрешен!");
+      
       // Сохраняем сессию
       localStorage.setItem('manualUser', JSON.stringify(currentUser));
       userEmail.textContent = currentUser.email;
@@ -864,15 +872,20 @@ async function checkUserAccess(email) {
       // Показываем основной контент
       showMainContent();
     } else {
-      let message = found ? 
-        "Ваш email не имеет доступа к этому разделу" : 
-        "Email не найден в базе данных";
+      let message = "";
+      if (!found) {
+        message = "Email не найден в базе данных";
+        console.log("❌ Email не найден в базе");
+      } else {
+        message = "Ваш email не имеет доступа к этому разделу";
+        console.log("❌ Ссылка на сайт не найдена");
+      }
       showAccessDenied(message);
     }
     
   } catch (error) {
     console.error('Ошибка проверки доступа:', error);
-    showAccessDenied("Ошибка при проверке доступа");
+    showAccessDenied("Ошибка при проверке доступа: " + error.message);
   }
 }
 
