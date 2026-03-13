@@ -155,6 +155,31 @@ header {
   font-size:16px;
   font-weight:600;
   border-radius:6px 6px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.refresh-icon {
+  width: 32px;
+  height: 32px;
+  background-color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #1f2937;
+  font-size: 16px;
+  transition: transform 0.3s ease;
+}
+
+.refresh-icon:hover {
+  transform: rotate(180deg);
+}
+
+.refresh-icon:active {
+  transform: rotate(180deg) scale(0.95);
 }
 
 .top-image {
@@ -559,17 +584,21 @@ header {
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbx3Y029LW0WupBSZ3QhW7t8kjPYZQmPGjB_tm6gm84KShCweHNrBIBoQNYb_owzV_n_xQ/exec";
+// Конфигурация Google Sheets
+const API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
+const SPREADSHEET_ID = '1v-R394u6sKzSdvmkh9qsbqhfkNZEi5lIXwo8BdT_lhQ';
+const MANUALS_RANGE = 'MANUALS!A:Z'; // Лист с мануалами и деталями
+const MANUAL_RANGE = 'MANUAL!A:B'; // Лист с PDF
 
-let manualsData=[];
-let stockData={};
-let searchResults=[];
-let currentIndex=0;
+let manualsData = [];
+let stockData = {};
+let searchResults = [];
+let currentIndex = 0;
 
-const searchNav=document.getElementById("searchNav");
-const manualContainer=document.getElementById("manualContainer");
-const searchInput=document.getElementById("searchInput");
-const loadingScreen=document.getElementById("loadingScreen");
+const searchNav = document.getElementById("searchNav");
+const manualContainer = document.getElementById("manualContainer");
+const searchInput = document.getElementById("searchInput");
+const loadingScreen = document.getElementById("loadingScreen");
 const imageModal = document.getElementById("imageModal");
 const modalImage = document.getElementById("modalImage");
 
@@ -617,20 +646,118 @@ document.addEventListener("touchend", function (event) {
   lastTouchEnd = now;
 }, false);
 
-async function loadManuals(){
+async function loadFromGoogleSheets() {
   try {
-    const res=await fetch(API_URL);
-    const data=await res.json();
-    manualsData=data.manuals;
-    stockData=data.stock;
+    // Загружаем данные из листа MANUALS
+    const manualsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${MANUALS_RANGE}?key=${API_KEY}`;
+    const manualsResponse = await fetch(manualsUrl);
+    const manualsData_raw = await manualsResponse.json();
+    
+    // Загружаем данные из листа MANUAL (PDF ссылки)
+    const manualUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${MANUAL_RANGE}?key=${API_KEY}`;
+    const manualResponse = await fetch(manualUrl);
+    const manualData_raw = await manualResponse.json();
+    
+    processSheetData(manualsData_raw.values, manualData_raw.values);
+    
     renderManualGroups();
     setTimeout(() => {
       loadingScreen.classList.add('fade-out');
     }, 500);
   } catch (error) {
-    console.error('Ошибка загрузки:', error);
+    console.error('Ошибка загрузки данных:', error);
     loadingScreen.classList.add('fade-out');
+    manualContainer.innerHTML = '<div style="padding:20px; text-align:center;">Ошибка загрузки данных. Пожалуйста, обновите страницу.</div>';
   }
+}
+
+function processSheetData(manualsRows, manualRows) {
+  manualsData = [];
+  stockData = {};
+  
+  if (!manualsRows || manualsRows.length === 0) return;
+  
+  // Первая строка - заголовки, пропускаем её
+  const headers = manualsRows[0];
+  
+  // Обрабатываем каждую строку начиная со второй
+  for (let i = 1; i < manualsRows.length; i++) {
+    const row = manualsRows[i];
+    if (!row[0]) continue; // Пропускаем пустые строки
+    
+    const manualName = row[0]; // Название мануала (столбец A)
+    const imageUrl = row[1] || ''; // Ссылка на картинку (столбец B)
+    
+    // Собираем все детали, начиная со столбца C (индекс 2)
+    const parts = [];
+    for (let j = 2; j < row.length; j++) {
+      if (row[j] && row[j].trim() !== '') {
+        parts.push(row[j].trim());
+      }
+    }
+    
+    // Добавляем мануал в массив
+    manualsData.push({
+      name: manualName,
+      image: imageUrl,
+      parts: parts
+    });
+  }
+  
+  // Обрабатываем данные из листа MANUAL (PDF ссылки)
+  if (manualRows && manualRows.length > 0) {
+    // Первая строка - заголовки, пропускаем её
+    for (let i = 1; i < manualRows.length; i++) {
+      const row = manualRows[i];
+      if (!row[0]) continue;
+      
+      const manualName = row[0]; // Название мануала
+      const pdfUrl = row[1] || ''; // Ссылка на PDF
+      
+      // Находим соответствующий мануал и добавляем PDF ссылку
+      const manual = manualsData.find(m => m.name === manualName);
+      if (manual) {
+        manual.pdf = pdfUrl;
+      }
+    }
+  }
+  
+  // Создаем демо-данные для stockData (так как их нет в таблице)
+  // В реальном проекте их нужно загружать из другого источника
+  generateDemoStockData();
+}
+
+function generateDemoStockData() {
+  // Собираем все уникальные номера деталей
+  const allParts = new Set();
+  manualsData.forEach(manual => {
+    manual.parts.forEach(part => {
+      // Парсим составные детали
+      if (part.includes('(') && part.includes(')')) {
+        const matches = part.match(/\(([^)]+)\)\s+([\d-]+)/g);
+        if (matches) {
+          matches.forEach(match => {
+            const number = match.split(' ').pop();
+            allParts.add(number);
+          });
+        } else {
+          allParts.add(part);
+        }
+      } else {
+        allParts.add(part);
+      }
+    });
+  });
+  
+  // Создаем демо-данные для каждого клуба
+  allParts.forEach(part => {
+    stockData[part] = {
+      BB: { quantity: Math.floor(Math.random() * 5), location: 'Склад 1', image: '' },
+      KH: { quantity: Math.floor(Math.random() * 3), location: 'Склад 2', image: '' },
+      SKYMALL: { quantity: Math.floor(Math.random() * 4), location: 'Склад 3', image: '' },
+      STORE: { quantity: Math.floor(Math.random() * 2), location: 'Магазин', image: '' }
+    };
+  });
 }
 
 function parseCompositeParts(partString) {
@@ -657,33 +784,55 @@ function isCompositePart(partString) {
   return matches && matches.length > 1;
 }
 
-function renderManualGroups(){
-  manualContainer.innerHTML="";
-  [...new Set(manualsData.map(m=>m.name))].forEach(name=>{
-    const b=document.createElement("button");
-    b.className="start-btn";
+function renderManualGroups() {
+  manualContainer.innerHTML = "";
+  
+  // Получаем уникальные имена мануалов
+  const uniqueNames = [...new Set(manualsData.map(m => m.name))];
+  
+  uniqueNames.forEach(name => {
+    const b = document.createElement("button");
+    b.className = "start-btn";
     const icon = document.createElement("i");
     icon.className = "fa-solid fa-book-open";
     const span = document.createElement("span");
     span.textContent = name;
     b.appendChild(icon);
     b.appendChild(span);
-    b.onclick=()=>renderManualsByName(name);
+    b.onclick = () => renderManualsByName(name);
     manualContainer.appendChild(b);
   });
-  searchInput.value="";
-  searchResults=[];
-  currentIndex=0;
-  searchNav.style.display="none";
+  
+  searchInput.value = "";
+  searchResults = [];
+  currentIndex = 0;
+  searchNav.style.display = "none";
 }
 
-function renderManualsByName(name){
-  manualContainer.innerHTML="";
+// Функция для перезагрузки изображения
+function reloadImage(imgElement, imageUrl) {
+  if (!imgElement || !imageUrl) return;
+  
+  // Добавляем параметр timestamp, чтобы избежать кэширования
+  const timestamp = new Date().getTime();
+  const separator = imageUrl.includes('?') ? '&' : '?';
+  const newSrc = `${imageUrl}${separator}t=${timestamp}`;
+  
+  // Создаем новый объект Image для предзагрузки
+  const newImg = new Image();
+  newImg.onload = function() {
+    imgElement.src = newSrc;
+  };
+  newImg.src = newSrc;
+}
+
+function renderManualsByName(name) {
+  manualContainer.innerHTML = "";
   
   // Находим текущий мануал в данных
   const currentManual = manualsData.find(m => m.name === name);
   
-  // Кнопка MANUAL PDF с иконкой PDF (теперь точно PDF!)
+  // Кнопка MANUAL PDF с иконкой PDF
   const pdfButton = document.createElement("div");
   pdfButton.className = "pdf-top-button";
   pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
@@ -698,17 +847,35 @@ function renderManualsByName(name){
   
   manualContainer.appendChild(pdfButton);
   
-  manualsData.filter(m=>m.name===name).forEach(manual=>{
-    const block=document.createElement("div");
-    block.className="block";
-    block.innerHTML=`
-      <div class="manual-label">${manual.name}</div>
-      <img class="top-image clickable-image" src="${manual.image}">
-      <div class="buttons-container"></div>
+  manualsData.filter(m => m.name === name).forEach(manual => {
+    const block = document.createElement("div");
+    block.className = "block";
+    
+    // Создаем заголовок с названием мануала и стрелкой обновления
+    const labelDiv = document.createElement("div");
+    labelDiv.className = "manual-label";
+    labelDiv.innerHTML = `
+      <span>${manual.name}</span>
+      <div class="refresh-icon" onclick="reloadImage(document.querySelector('.top-image[data-manual=\\'${manual.name}\\']'), '${manual.image}')">
+        <i class="fa-solid fa-rotate-right"></i>
+      </div>
     `;
-    const cont=block.querySelector(".buttons-container");
-    const image=block.querySelector(".clickable-image");
-    image.onclick=()=>cont.style.display=cont.style.display==="flex"?"none":"flex";
+    
+    const image = document.createElement("img");
+    image.className = "top-image clickable-image";
+    image.src = manual.image;
+    image.alt = manual.name;
+    image.setAttribute('data-manual', manual.name);
+    image.onerror = () => image.src = 'https://via.placeholder.com/400x200?text=No+Image';
+    
+    const cont = document.createElement("div");
+    cont.className = "buttons-container";
+    
+    image.onclick = () => cont.style.display = cont.style.display === "flex" ? "none" : "flex";
+    
+    block.appendChild(labelDiv);
+    block.appendChild(image);
+    block.appendChild(cont);
 
     manual.parts.forEach((part, index) => {
       const singleCode = extractSingleCode(part);
@@ -753,9 +920,9 @@ function createPartButton(container, partNumber, label, image) {
   container.appendChild(btn);
 }
 
-function toggleDetail(btn){
+function toggleDetail(btn) {
   const nextEl = btn.nextElementSibling;
-  if(nextEl && nextEl.classList.contains("detail-info")){
+  if (nextEl && nextEl.classList.contains("detail-info")) {
     nextEl.remove(); 
     btn.classList.remove("active-detail");
     return;
@@ -861,23 +1028,27 @@ searchInput.oninput = e => {
   });
 };
 
-function nextResult(){
-  if(!searchResults.length) return;
+function nextResult() {
+  if (!searchResults.length) return;
   searchResults[currentIndex].classList.remove("active-highlight");
-  currentIndex=(currentIndex+1)%searchResults.length;
+  currentIndex = (currentIndex + 1) % searchResults.length;
   searchResults[currentIndex].classList.add("active-highlight");
-  searchResults[currentIndex].scrollIntoView({behavior:"smooth",block:"center"});
+  searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
 }
 
-function prevResult(){
-  if(!searchResults.length) return;
+function prevResult() {
+  if (!searchResults.length) return;
   searchResults[currentIndex].classList.remove("active-highlight");
-  currentIndex=(currentIndex-1+searchResults.length)%searchResults.length;
+  currentIndex = (currentIndex - 1 + searchResults.length) % searchResults.length;
   searchResults[currentIndex].classList.add("active-highlight");
-  searchResults[currentIndex].scrollIntoView({behavior:"smooth",block:"center"});
+  searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
 }
 
-loadManuals();
+// Загружаем данные при старте
+loadFromGoogleSheets();
+
+// Делаем функцию reloadImage глобальной
+window.reloadImage = reloadImage;
 </script>
 </body>
 </html>
