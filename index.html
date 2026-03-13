@@ -10,6 +10,9 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
 <style>
 /* ===== ОТКЛЮЧЕНИЕ DOUBLE TAP ZOOM ===== */
 html, body {
@@ -514,112 +517,50 @@ header {
   to { transform: rotate(365deg); }
 }
 
-/* Стили для модального окна авторизации */
-.auth-modal {
-  display: none;
+/* Стили для страницы авторизации */
+.auth-page {
   position: fixed;
-  z-index: 10000;
-  left: 0;
   top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0,0,0,0.9);
+  background: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
 }
 
-.auth-modal-content {
-  background-color: #1f2937;
-  margin: 15% auto;
-  padding: 30px;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 400px;
-  color: white;
+.auth-container {
   text-align: center;
-  position: relative;
-  animation: slideDown 0.3s ease;
+  padding: 40px;
+  max-width: 400px;
+  width: 90%;
 }
 
-@keyframes slideDown {
-  from {
-    transform: translateY(-50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.auth-logo {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 30px;
 }
 
-.auth-modal-close {
-  position: absolute;
-  right: 20px;
-  top: 10px;
-  color: #aaa;
-  font-size: 28px;
-  font-weight: bold;
-  cursor: pointer;
+.auth-title {
+  font-size: 24px;
+  color: #1f2937;
+  margin-bottom: 10px;
+  font-weight: 600;
 }
 
-.auth-modal-close:hover {
-  color: #dc143c;
-}
-
-.auth-modal h2 {
-  margin-bottom: 20px;
-  color: white;
-}
-
-.auth-modal input {
-  width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  border: 2px solid #374151;
-  border-radius: 5px;
-  background: #2d3748;
-  color: white;
+.auth-subtitle {
   font-size: 16px;
-  box-sizing: border-box;
+  color: #6b7280;
+  margin-bottom: 40px;
 }
 
-.auth-modal input:focus {
-  outline: none;
-  border-color: #dc143c;
-}
-
-.auth-modal button {
-  background: #dc143c;
-  color: white;
-  padding: 12px 30px;
-  border: none;
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 20px;
-  width: 100%;
-  transition: background 0.2s;
-}
-
-.auth-modal button:hover {
-  background: #b01030;
-}
-
-.auth-modal button:active {
-  transform: scale(0.98);
-}
-
-.auth-error {
-  color: #dc143c;
-  margin-top: 10px;
-  font-size: 14px;
-  display: none;
-}
-
-.auth-success {
-  color: #16a34a;
-  margin-top: 10px;
-  font-size: 14px;
-  display: none;
+.g_id_signin {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
 }
 
 /* Стили для сообщения о блокировке */
@@ -628,8 +569,8 @@ header {
   padding: 50px 20px;
   max-width: 500px;
   margin: 50px auto;
-  background: #1f2937;
-  color: white;
+  background: white;
+  color: #1f2937;
   border-radius: 10px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
@@ -646,7 +587,7 @@ header {
 }
 
 .access-denied p {
-  color: #9ca3af;
+  color: #6b7280;
   margin-bottom: 25px;
   line-height: 1.6;
 }
@@ -670,9 +611,39 @@ header {
 .access-denied button:active {
   transform: scale(0.98);
 }
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 14px;
+}
+
+.user-email {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid white;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: white;
+  color: #1f2937;
+}
 </style>
 </head>
-
 <body>
 
 <div class="loading-screen" id="loadingScreen">
@@ -682,36 +653,55 @@ header {
   </div>
 </div>
 
+<!-- Страница авторизации -->
+<div id="authPage" class="auth-page">
+  <div class="auth-container">
+    <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Logo" class="auth-logo">
+    <h1 class="auth-title">Добро пожаловать</h1>
+    <p class="auth-subtitle">Войдите с помощью Google для доступа к MANUALS</p>
+    
+    <!-- Кнопка Google Sign In -->
+    <div id="g_id_onload"
+         data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+         data-context="signin"
+         data-ux_mode="popup"
+         data-callback="handleGoogleSignIn"
+         data-auto_prompt="false">
+    </div>
+    
+    <div class="g_id_signin"
+         data-type="standard"
+         data-shape="rectangular"
+         data-theme="outline"
+         data-text="signin_with"
+         data-size="large"
+         data-logo_alignment="left">
+    </div>
+  </div>
+</div>
+
 <!-- Модальное окно для изображения -->
 <div id="imageModal" class="image-modal" onclick="closeImageModal()">
   <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
   <img class="image-modal-content" id="modalImage" src="">
 </div>
 
-<!-- Модальное окно авторизации -->
-<div id="authModal" class="auth-modal">
-  <div class="auth-modal-content">
-    <span class="auth-modal-close" onclick="closeAuthModal()">&times;</span>
-    <h2>Введите ваш email</h2>
-    <input type="email" id="emailInput" placeholder="example@email.com" autocomplete="off">
-    <button onclick="checkEmail()">Продолжить</button>
-    <div id="authError" class="auth-error">Неверный email. Доступ запрещен.</div>
-    <div id="authSuccess" class="auth-success">Email подтвержден! Загружаем данные...</div>
-  </div>
-</div>
-
-<header>
+<header id="mainHeader" style="display: none;">
   <div class="logo" onclick="window.location.href='https://smart-bowling.github.io/SMB/'">
     <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Logo">
   </div>
   <div class="site-name">MANUALS</div>
+  <div class="user-info" id="userInfo">
+    <span class="user-email" id="userEmail"></span>
+    <button class="logout-btn" onclick="logout()">Выйти</button>
+  </div>
   <div class="search-container">
     <input type="text" id="searchInput" placeholder="Поиск детали">
     <i class="fa-solid fa-magnifying-glass"></i>
   </div>
 </header>
 
-<div id="manualContainer"></div>
+<div id="manualContainer" style="display: none;"></div>
 
 <div class="search-nav-bottom" id="searchNav">
   <button onclick="prevResult()" title="Предыдущая деталь"><i class="fa-solid fa-chevron-left"></i></button>
@@ -719,11 +709,11 @@ header {
   <button onclick="nextResult()" title="Следующая деталь"><i class="fa-solid fa-chevron-right"></i></button>
 </div>
 
-<div class="shop-fab-left" onclick="openShopSearch()">
+<div class="shop-fab-left" onclick="openShopSearch()" style="display: none;">
   <i class="fa-solid fa-magnifying-glass"></i>
 </div>
 
-<div class="shop-fab-right" onclick="renderManualGroups()">
+<div class="shop-fab-right" onclick="renderManualGroups()" style="display: none;">
   <i class="fa-solid fa-arrow-left"></i>
 </div>
 
@@ -749,53 +739,81 @@ let manualsData = [];
 let stockData = {};
 let searchResults = [];
 let currentIndex = 0;
-let userEmail = '';
-let authorizedEmails = [];
+let currentUser = null;
 let currentSiteUrl = window.location.href;
 
 // Убираем параметры из URL для точного сравнения
 currentSiteUrl = currentSiteUrl.split('?')[0].split('#')[0];
 
-const searchNav = document.getElementById("searchNav");
+// Элементы DOM
+const authPage = document.getElementById("authPage");
+const mainHeader = document.getElementById("mainHeader");
 const manualContainer = document.getElementById("manualContainer");
 const searchInput = document.getElementById("searchInput");
+const searchNav = document.getElementById("searchNav");
 const loadingScreen = document.getElementById("loadingScreen");
 const imageModal = document.getElementById("imageModal");
 const modalImage = document.getElementById("modalImage");
-const authModal = document.getElementById("authModal");
-const emailInput = document.getElementById("emailInput");
-const authError = document.getElementById("authError");
-const authSuccess = document.getElementById("authSuccess");
+const userEmail = document.getElementById("userEmail");
+const shopFabLeft = document.querySelector(".shop-fab-left");
+const shopFabRight = document.querySelector(".shop-fab-right");
 
-// Показываем модальное окно авторизации при загрузке
+// Загружаем сохраненную сессию при старте
 window.onload = function() {
-  setTimeout(() => {
-    loadingScreen.classList.add('fade-out');
+  const savedUser = localStorage.getItem('manualUser');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      checkUserAccess(currentUser.email);
+    } catch (e) {
+      showAuthPage();
+    }
+  } else {
     setTimeout(() => {
-      authModal.style.display = "block";
-    }, 500);
-  }, 1500);
+      loadingScreen.classList.add('fade-out');
+      setTimeout(() => {
+        showAuthPage();
+      }, 500);
+    }, 1500);
+  }
 };
 
-function closeAuthModal() {
-  authModal.style.display = "none";
+function showAuthPage() {
+  authPage.style.display = "flex";
+  mainHeader.style.display = "none";
+  manualContainer.style.display = "none";
+  shopFabLeft.style.display = "none";
+  shopFabRight.style.display = "none";
+  searchNav.style.display = "none";
 }
 
-async function checkEmail() {
-  const email = emailInput.value.trim().toLowerCase();
+function showMainContent() {
+  authPage.style.display = "none";
+  mainHeader.style.display = "flex";
+  manualContainer.style.display = "block";
+  shopFabLeft.style.display = "flex";
+  shopFabRight.style.display = "flex";
   
-  if (!email) {
-    showAuthError("Введите email");
-    return;
-  }
+  // Загружаем данные
+  loadFromGoogleSheets();
+}
+
+// Обработчик успешного входа через Google
+function handleGoogleSignIn(response) {
+  // Декодируем JWT токен
+  const payload = JSON.parse(atob(response.credential.split('.')[1]));
   
-  // Простая валидация email
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    showAuthError("Введите корректный email");
-    return;
-  }
+  currentUser = {
+    email: payload.email,
+    name: payload.name,
+    picture: payload.picture
+  };
   
+  // Проверяем доступ пользователя
+  checkUserAccess(payload.email);
+}
+
+async function checkUserAccess(email) {
   try {
     // Загружаем данные из таблицы с email
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${EMAIL_SPREADSHEET_ID}/values/${EMAIL_SHEET_NAME}?key=${EMAIL_API_KEY}`;
@@ -803,33 +821,30 @@ async function checkEmail() {
     const data = await response.json();
     
     if (!data.values) {
-      showAuthError("Ошибка загрузки данных");
+      showAccessDenied("Ошибка загрузки данных");
       return;
     }
     
     // Ищем email в колонке А (индекс 0)
-    const emailColumnIndex = 0; // Колонка А
+    const emailColumnIndex = 0;
     let found = false;
     let hasSiteLink = false;
     
-    console.log("Поиск email:", email);
+    console.log("Проверка доступа для email:", email);
     console.log("Текущий URL сайта:", currentSiteUrl);
     
     for (let i = 0; i < data.values.length; i++) {
       const row = data.values[i];
       const rowEmail = row[emailColumnIndex] ? row[emailColumnIndex].toLowerCase().trim() : '';
       
-      if (rowEmail === email) {
+      if (rowEmail === email.toLowerCase()) {
         found = true;
         console.log("Email найден в строке", i + 1);
         
-        // Проверяем все колонки начиная с B (индекс 1) на наличие ссылки на текущий сайт
+        // Проверяем все колонки начиная с B (индекс 1)
         for (let j = 1; j < row.length; j++) {
           if (row[j]) {
             const cellValue = row[j].trim();
-            console.log(`Проверка колонки ${j + 1}:`, cellValue);
-            
-            // Проверяем, содержит ли ячейка ссылку на наш сайт
             if (cellValue.includes(currentSiteUrl)) {
               hasSiteLink = true;
               console.log("Найдена ссылка на сайт в колонке", j + 1);
@@ -841,52 +856,44 @@ async function checkEmail() {
       }
     }
     
-    if (found) {
-      if (hasSiteLink) {
-        // Email найден и есть ссылка на сайт - разрешаем доступ
-        authSuccess.style.display = "block";
-        authError.style.display = "none";
-        userEmail = email;
-        
-        setTimeout(() => {
-          closeAuthModal();
-          loadFromGoogleSheets(); // Загружаем основные данные
-        }, 1500);
-      } else {
-        // Email найден, но нет ссылки на сайт - запрещаем доступ
-        console.log("Ссылка на сайт не найдена");
-        showAccessDenied("Ваш email не имеет доступа к этому разделу");
-      }
+    if (found && hasSiteLink) {
+      // Сохраняем сессию
+      localStorage.setItem('manualUser', JSON.stringify(currentUser));
+      userEmail.textContent = currentUser.email;
+      
+      // Показываем основной контент
+      showMainContent();
     } else {
-      // Email не найден - запрещаем доступ
-      console.log("Email не найден в базе");
-      showAccessDenied("Email не найден в базе данных");
+      let message = found ? 
+        "Ваш email не имеет доступа к этому разделу" : 
+        "Email не найден в базе данных";
+      showAccessDenied(message);
     }
     
   } catch (error) {
-    console.error('Ошибка проверки email:', error);
-    showAuthError("Ошибка при проверке email");
+    console.error('Ошибка проверки доступа:', error);
+    showAccessDenied("Ошибка при проверке доступа");
   }
 }
 
-function showAuthError(message) {
-  authError.textContent = message;
-  authError.style.display = "block";
-  authSuccess.style.display = "none";
-}
-
 function showAccessDenied(message) {
-  closeAuthModal();
-  loadingScreen.classList.add('fade-out');
-  
-  manualContainer.innerHTML = `
+  authPage.innerHTML = `
     <div class="access-denied">
       <i class="fa-solid fa-lock"></i>
       <h2>Доступ запрещен</h2>
       <p>${message}</p>
-      <button onclick="location.reload()">Попробовать снова</button>
+      <button onclick="logout()">Попробовать снова</button>
     </div>
   `;
+}
+
+function logout() {
+  // Очищаем сохраненную сессию
+  localStorage.removeItem('manualUser');
+  currentUser = null;
+  
+  // Перезагружаем страницу
+  window.location.reload();
 }
 
 function openImageModal(imageUrl) {
@@ -904,9 +911,6 @@ function closeImageModal() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && imageModal.style.display === "block") {
     closeImageModal();
-  }
-  if (e.key === 'Escape' && authModal.style.display === "block") {
-    // Не закрываем модалку авторизации по ESC
   }
 });
 
@@ -1362,20 +1366,17 @@ function prevResult() {
   searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
 }
 
-// Предотвращаем закрытие модалки авторизации при клике на фон
-document.getElementById('authModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    // Не закрываем
-  }
-});
-
-// Добавляем обработчик для клавиши Enter в поле email
-emailInput.addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    checkEmail();
-  }
-});
+// Делаем функции глобальными
+window.handleGoogleSignIn = handleGoogleSignIn;
+window.logout = logout;
+window.openImageModal = openImageModal;
+window.closeImageModal = closeImageModal;
+window.openShopSearch = openShopSearch;
+window.renderManualGroups = renderManualGroups;
+window.prevResult = prevResult;
+window.nextResult = nextResult;
+window.clearSearch = clearSearch;
+window.handleClubClick = handleClubClick;
 </script>
 </body>
 </html>
