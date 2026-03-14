@@ -10,9 +10,6 @@
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-
 <style>
 /* ===== ОТКЛЮЧЕНИЕ DOUBLE TAP ZOOM ===== */
 html, body {
@@ -516,134 +513,9 @@ header {
 @keyframes spin {
   to { transform: rotate(365deg); }
 }
-
-/* Стили для страницы авторизации */
-.auth-page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000;
-}
-
-.auth-container {
-  text-align: center;
-  padding: 40px;
-  max-width: 400px;
-  width: 90%;
-}
-
-.auth-logo {
-  width: 100px;
-  height: 100px;
-  margin-bottom: 30px;
-}
-
-.auth-title {
-  font-size: 24px;
-  color: #1f2937;
-  margin-bottom: 10px;
-  font-weight: 600;
-}
-
-.auth-subtitle {
-  font-size: 16px;
-  color: #6b7280;
-  margin-bottom: 40px;
-}
-
-.g_id_signin {
-  display: flex;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-/* Стили для сообщения о блокировке */
-.access-denied {
-  text-align: center;
-  padding: 50px 20px;
-  max-width: 500px;
-  margin: 50px auto;
-  background: white;
-  color: #1f2937;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.access-denied i {
-  font-size: 80px;
-  color: #dc143c;
-  margin-bottom: 20px;
-}
-
-.access-denied h2 {
-  font-size: 24px;
-  margin-bottom: 15px;
-}
-
-.access-denied p {
-  color: #6b7280;
-  margin-bottom: 25px;
-  line-height: 1.6;
-}
-
-.access-denied button {
-  background: #dc143c;
-  color: white;
-  border: none;
-  padding: 12px 30px;
-  border-radius: 5px;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.access-denied button:hover {
-  background: #b01030;
-}
-
-.access-denied button:active {
-  transform: scale(0.98);
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: white;
-  font-size: 14px;
-}
-
-.user-email {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.logout-btn {
-  background: transparent;
-  border: 1px solid white;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s;
-}
-
-.logout-btn:hover {
-  background: white;
-  color: #1f2937;
-}
 </style>
 </head>
+
 <body>
 
 <div class="loading-screen" id="loadingScreen">
@@ -653,55 +525,24 @@ header {
   </div>
 </div>
 
-<!-- Страница авторизации -->
-<div id="authPage" class="auth-page">
-  <div class="auth-container">
-    <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Logo" class="auth-logo">
-    <h1 class="auth-title">Добро пожаловать</h1>
-    <p class="auth-subtitle">Войдите с помощью Google для доступа к MANUALS</p>
-    
-    <!-- Кнопка Google Sign In -->
-    <div id="g_id_onload"
-         data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-         data-context="signin"
-         data-ux_mode="popup"
-         data-callback="handleGoogleSignIn"
-         data-auto_prompt="false">
-    </div>
-    
-    <div class="g_id_signin"
-         data-type="standard"
-         data-shape="rectangular"
-         data-theme="outline"
-         data-text="signin_with"
-         data-size="large"
-         data-logo_alignment="left">
-    </div>
-  </div>
-</div>
-
 <!-- Модальное окно для изображения -->
 <div id="imageModal" class="image-modal" onclick="closeImageModal()">
   <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
   <img class="image-modal-content" id="modalImage" src="">
 </div>
 
-<header id="mainHeader" style="display: none;">
+<header>
   <div class="logo" onclick="window.location.href='https://smart-bowling.github.io/SMB/'">
     <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Logo">
   </div>
   <div class="site-name">MANUALS</div>
-  <div class="user-info" id="userInfo">
-    <span class="user-email" id="userEmail"></span>
-    <button class="logout-btn" onclick="logout()">Выйти</button>
-  </div>
   <div class="search-container">
     <input type="text" id="searchInput" placeholder="Поиск детали">
     <i class="fa-solid fa-magnifying-glass"></i>
   </div>
 </header>
 
-<div id="manualContainer" style="display: none;"></div>
+<div id="manualContainer"></div>
 
 <div class="search-nav-bottom" id="searchNav">
   <button onclick="prevResult()" title="Предыдущая деталь"><i class="fa-solid fa-chevron-left"></i></button>
@@ -709,28 +550,23 @@ header {
   <button onclick="nextResult()" title="Следующая деталь"><i class="fa-solid fa-chevron-right"></i></button>
 </div>
 
-<div class="shop-fab-left" onclick="openShopSearch()" style="display: none;">
+<div class="shop-fab-left" onclick="openShopSearch()">
   <i class="fa-solid fa-magnifying-glass"></i>
 </div>
 
-<div class="shop-fab-right" onclick="renderManualGroups()" style="display: none;">
+<div class="shop-fab-right" onclick="renderManualGroups()">
   <i class="fa-solid fa-arrow-left"></i>
 </div>
 
 <script>
-// Конфигурация Google Sheets для проверки email
-const EMAIL_SPREADSHEET_ID = '1-yiVdZYa6wJdupTiuiHvI_ht3Vu73RUjyCehZqs2cJ4';
-const EMAIL_SHEET_NAME = '1';
-const EMAIL_API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
-
-// Основная конфигурация для данных
+// Конфигурация Google Sheets
 const API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
 const SPREADSHEET_ID = '1v-R394u6sKzSdvmkh9qsbqhfkNZEi5lIXwo8BdT_lhQ';
-const MANUALS_RANGE = 'MANUALS!A:Z';
-const MANUAL_RANGE = 'MANUAL!A:B';
+const MANUALS_RANGE = 'MANUALS!A:Z'; // Лист с мануалами и деталями
+const MANUAL_RANGE = 'MANUAL!A:B'; // Лист с PDF
 
 // Диапазоны для листов с изображениями
-const STORE_RANGE = 'STORE!A:D';
+const STORE_RANGE = 'STORE!A:D'; // Столбец A - номер детали, B - количество, D - изображение
 const BB_RANGE = 'BB!A:D';
 const KH_RANGE = 'KH!A:D';
 const SKYMALL_RANGE = 'SKYMALL!A:D';
@@ -739,175 +575,13 @@ let manualsData = [];
 let stockData = {};
 let searchResults = [];
 let currentIndex = 0;
-let currentUser = null;
-let currentSiteUrl = window.location.href;
 
-// Убираем параметры из URL для точного сравнения
-currentSiteUrl = currentSiteUrl.split('?')[0].split('#')[0];
-
-// Элементы DOM
-const authPage = document.getElementById("authPage");
-const mainHeader = document.getElementById("mainHeader");
+const searchNav = document.getElementById("searchNav");
 const manualContainer = document.getElementById("manualContainer");
 const searchInput = document.getElementById("searchInput");
-const searchNav = document.getElementById("searchNav");
 const loadingScreen = document.getElementById("loadingScreen");
 const imageModal = document.getElementById("imageModal");
 const modalImage = document.getElementById("modalImage");
-const userEmail = document.getElementById("userEmail");
-const shopFabLeft = document.querySelector(".shop-fab-left");
-const shopFabRight = document.querySelector(".shop-fab-right");
-
-// Загружаем сохраненную сессию при старте
-window.onload = function() {
-  const savedUser = localStorage.getItem('manualUser');
-  if (savedUser) {
-    try {
-      currentUser = JSON.parse(savedUser);
-      checkUserAccess(currentUser.email);
-    } catch (e) {
-      showAuthPage();
-    }
-  } else {
-    setTimeout(() => {
-      loadingScreen.classList.add('fade-out');
-      setTimeout(() => {
-        showAuthPage();
-      }, 500);
-    }, 1500);
-  }
-};
-
-function showAuthPage() {
-  authPage.style.display = "flex";
-  mainHeader.style.display = "none";
-  manualContainer.style.display = "none";
-  shopFabLeft.style.display = "none";
-  shopFabRight.style.display = "none";
-  searchNav.style.display = "none";
-}
-
-function showMainContent() {
-  authPage.style.display = "none";
-  mainHeader.style.display = "flex";
-  manualContainer.style.display = "block";
-  shopFabLeft.style.display = "flex";
-  shopFabRight.style.display = "flex";
-  
-  // Загружаем данные
-  loadFromGoogleSheets();
-}
-
-// Обработчик успешного входа через Google
-function handleGoogleSignIn(response) {
-  // Декодируем JWT токен
-  const payload = JSON.parse(atob(response.credential.split('.')[1]));
-  
-  currentUser = {
-    email: payload.email,
-    name: payload.name,
-    picture: payload.picture
-  };
-  
-  console.log("Вошел пользователь:", currentUser.email);
-  
-  // Проверяем доступ пользователя
-  checkUserAccess(payload.email);
-}
-
-async function checkUserAccess(email) {
-  try {
-    // Загружаем данные из таблицы с email
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${EMAIL_SPREADSHEET_ID}/values/${EMAIL_SHEET_NAME}?key=${EMAIL_API_KEY}`;
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    if (!data.values) {
-      showAccessDenied("Ошибка загрузки данных");
-      return;
-    }
-    
-    console.log("Все данные из таблицы:", data.values);
-    
-    // Ищем email в колонке А (индекс 0)
-    let found = false;
-    let hasSiteLink = false;
-    
-    for (let i = 0; i < data.values.length; i++) {
-      const row = data.values[i];
-      const rowEmail = row[0] ? row[0].toLowerCase().trim() : '';
-      
-      console.log(`Строка ${i + 1}:`, row);
-      console.log(`Email в строке ${i + 1}:`, rowEmail);
-      
-      if (rowEmail === email.toLowerCase()) {
-        found = true;
-        console.log("✅ Email найден в строке", i + 1);
-        
-        // Проверяем все колонки начиная с B (индекс 1)
-        for (let j = 1; j < row.length; j++) {
-          if (row[j]) {
-            const cellValue = row[j].trim();
-            console.log(`  Колонка ${j + 1}:`, cellValue);
-            
-            // Проверяем, содержит ли ячейка ссылку на наш сайт
-            if (cellValue.includes('smart-bowling.github.io/MANUALS-SMART')) {
-              hasSiteLink = true;
-              console.log("  ✅ Найдена ссылка на сайт в колонке", j + 1);
-              break;
-            }
-          }
-        }
-        break;
-      }
-    }
-    
-    if (found && hasSiteLink) {
-      console.log("✅ Доступ разрешен!");
-      
-      // Сохраняем сессию
-      localStorage.setItem('manualUser', JSON.stringify(currentUser));
-      userEmail.textContent = currentUser.email;
-      
-      // Показываем основной контент
-      showMainContent();
-    } else {
-      let message = "";
-      if (!found) {
-        message = "Email не найден в базе данных";
-        console.log("❌ Email не найден в базе");
-      } else {
-        message = "Ваш email не имеет доступа к этому разделу";
-        console.log("❌ Ссылка на сайт не найдена");
-      }
-      showAccessDenied(message);
-    }
-    
-  } catch (error) {
-    console.error('Ошибка проверки доступа:', error);
-    showAccessDenied("Ошибка при проверке доступа: " + error.message);
-  }
-}
-
-function showAccessDenied(message) {
-  authPage.innerHTML = `
-    <div class="access-denied">
-      <i class="fa-solid fa-lock"></i>
-      <h2>Доступ запрещен</h2>
-      <p>${message}</p>
-      <button onclick="logout()">Попробовать снова</button>
-    </div>
-  `;
-}
-
-function logout() {
-  // Очищаем сохраненную сессию
-  localStorage.removeItem('manualUser');
-  currentUser = null;
-  
-  // Перезагружаем страницу
-  window.location.reload();
-}
 
 function openImageModal(imageUrl) {
   if (imageUrl && imageUrl.trim() !== '') {
@@ -971,8 +645,12 @@ async function loadFromGoogleSheets() {
     processSheetData(manualsData_raw.values, manualData_raw.values);
     
     renderManualGroups();
+    setTimeout(() => {
+      loadingScreen.classList.add('fade-out');
+    }, 500);
   } catch (error) {
     console.error('Ошибка загрузки данных:', error);
+    loadingScreen.classList.add('fade-out');
     manualContainer.innerHTML = '<div style="padding:20px; text-align:center;">Ошибка загрузки данных. Пожалуйста, обновите страницу.</div>';
   }
 }
@@ -1379,17 +1057,8 @@ function prevResult() {
   searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
 }
 
-// Делаем функции глобальными
-window.handleGoogleSignIn = handleGoogleSignIn;
-window.logout = logout;
-window.openImageModal = openImageModal;
-window.closeImageModal = closeImageModal;
-window.openShopSearch = openShopSearch;
-window.renderManualGroups = renderManualGroups;
-window.prevResult = prevResult;
-window.nextResult = nextResult;
-window.clearSearch = clearSearch;
-window.handleClubClick = handleClubClick;
+// Загружаем данные при старте
+loadFromGoogleSheets();
 </script>
 </body>
 </html>
