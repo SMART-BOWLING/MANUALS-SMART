@@ -150,7 +150,7 @@ header {
   color: #dc143c;
 }
 
-/* ===== ОБЛАСТЬ НАЗВАНИЯ МАНУАЛА - КЛИКАБЕЛЬНА ДЛЯ ОТКРЫТИЯ КАРТИНКИ ===== */
+/* ===== ОБЛАСТЬ НАЗВАНИЯ МАНУАЛА - КЛИКАБЕЛЬНА ДЛЯ ПЕРЕХОДА ПО ПРЯМОЙ ССЫЛКЕ НА КАРТИНКУ ===== */
 .manual-label {
   background:#1f2937;
   color:white;
@@ -164,6 +164,7 @@ header {
   align-items: center;
   justify-content: space-between;
   user-select: none;
+  text-decoration: none;
 }
 .manual-label:hover {
   background:#2d3a4a;
@@ -306,45 +307,6 @@ header {
 
 .club-row.has-image .club-image-icon {
   opacity: 1;
-}
-
-/* Модальное окно для изображения */
-.image-modal {
-  display: none;
-  position: fixed;
-  z-index: 9999;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.9);
-  cursor: pointer;
-}
-
-.image-modal-content {
-  margin: auto;
-  display: block;
-  max-width: 90%;
-  max-height: 90%;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.image-modal-close {
-  position: absolute;
-  top: 20px;
-  right: 35px;
-  color: #f1f1f1;
-  font-size: 40px;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 10000;
-}
-
-.image-modal-close:hover {
-  color: #dc143c;
 }
 
 .search-highlight {
@@ -708,11 +670,6 @@ header {
 </div>
 
 <div id="main-content">
-  <div id="imageModal" class="image-modal" onclick="closeImageModal()">
-    <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
-    <img class="image-modal-content" id="modalImage" src="">
-  </div>
-
   <header>
     <div class="logo" onclick="window.location.href='https://smart-bowling.github.io/SMB/'">
       <img src="https://i.postimg.cc/wjGzSY92/1.png" alt="Logo">
@@ -766,28 +723,9 @@ const searchNav = document.getElementById("searchNav");
 const manualContainer = document.getElementById("manualContainer");
 const searchInput = document.getElementById("searchInput");
 const loadingScreen = document.getElementById("loadingScreen");
-const imageModal = document.getElementById("imageModal");
-const modalImage = document.getElementById("modalImage");
 const loginSection = document.getElementById("login-section");
 const mainContent = document.getElementById("main-content");
 const userInfo = document.getElementById("user-info");
-
-function openImageModal(imageUrl) {
-  if (imageUrl && imageUrl.trim() !== '') {
-    modalImage.src = imageUrl;
-    imageModal.style.display = "block";
-  }
-}
-
-function closeImageModal() {
-  imageModal.style.display = "none";
-}
-
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape' && imageModal.style.display === "block") {
-    closeImageModal();
-  }
-});
 
 function openShopSearch() {
   const partNumber = prompt("Введите номер детали:", "");
@@ -1055,7 +993,7 @@ function renderManualGroups() {
   searchNav.style.display = "none";
 }
 
-// ГЛАВНОЕ ИЗМЕНЕНИЕ: renderManualsByName с кликабельным .manual-label
+// ГЛАВНОЕ ИЗМЕНЕНИЕ: при клике на название мануала открывается картинка в новой вкладке (прямая ссылка)
 function renderManualsByName(name) {
   manualContainer.innerHTML = "";
   const currentManual = manualsData.find(m => m.name === name);
@@ -1068,14 +1006,19 @@ function renderManualsByName(name) {
   manualsData.filter(m => m.name === name).forEach(manual => {
     const block = document.createElement("div"); block.className = "block";
     
-    // Кликабельная область названия мануала - открывает оригинальное изображение
+    // Кликабельная область названия мануала - открывает картинку в новой вкладке (как обычная ссылка)
     const labelDiv = document.createElement("div");
     labelDiv.className = "manual-label";
     labelDiv.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
+    // Прямой переход по ссылке на изображение
     labelDiv.onclick = (e) => {
       e.stopPropagation();
-      if (manual.image && manual.image.trim() !== '') { openImageModal(manual.image); } 
-      else { alert('Изображение отсутствует'); }
+      if (manual.image && manual.image.trim() !== '') {
+        // Открываем картинку в новой вкладке (как если бы перешли по прямой ссылке)
+        window.open(manual.image, '_blank');
+      } else {
+        alert('Изображение отсутствует');
+      }
     };
     
     const img = document.createElement("img");
@@ -1148,7 +1091,10 @@ function toggleDetail(btn) {
 function handleClubClick(club, part, event) {
   event.stopPropagation();
   const partData = stockData[part];
-  if (partData && partData[club] && partData[club].image && partData[club].image.trim() !== '') { openImageModal(partData[club].image); }
+  if (partData && partData[club] && partData[club].image && partData[club].image.trim() !== '') {
+    // Открываем изображение склада в новой вкладке
+    window.open(partData[club].image, '_blank');
+  }
 }
 
 function clearSearch() {
