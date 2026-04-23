@@ -993,56 +993,168 @@ function renderManualGroups() {
   searchNav.style.display = "none";
 }
 
-// ГЛАВНОЕ ИЗМЕНЕНИЕ: при клике на название мануала открывается картинка в новой вкладке (прямая ссылка)
+// === ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТРИСОВКИ МАНУАЛА (добавляет, а не заменяет) ===
+function appendManualToContainer(manualName) {
+  const currentManual = manualsData.find(m => m.name === manualName);
+  if (!currentManual) return;
+  
+  // PDF кнопка добавляется только если это первый мануал в контейнере
+  const existingPdfButtons = manualContainer.querySelectorAll('.pdf-top-button');
+  if (existingPdfButtons.length === 0 && currentManual.pdf) {
+    const pdfButton = document.createElement("div");
+    pdfButton.className = "pdf-top-button";
+    pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
+    pdfButton.onclick = () => { if (currentManual && currentManual.pdf) { window.open(currentManual.pdf, '_blank'); } else { alert('PDF для этого мануала не найден'); } };
+    manualContainer.appendChild(pdfButton);
+  }
+  
+  const block = document.createElement("div"); block.className = "block";
+  
+  const labelDiv = document.createElement("div");
+  labelDiv.className = "manual-label";
+  labelDiv.innerHTML = `${currentManual.name} <i class="fa-regular fa-image"></i>`;
+  labelDiv.onclick = (e) => {
+    e.stopPropagation();
+    if (currentManual.image && currentManual.image.trim() !== '') {
+      window.open(currentManual.image, '_blank');
+    } else {
+      alert('Изображение отсутствует');
+    }
+  };
+  
+  const img = document.createElement("img");
+  img.className = "top-image clickable-image";
+  img.src = currentManual.image;
+  img.onerror = () => { img.src = 'https://via.placeholder.com/400x200?text=No+Image'; };
+  
+  const buttonsContainer = document.createElement("div");
+  buttonsContainer.className = "buttons-container";
+  
+  img.onclick = () => { buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex"; };
+  
+  block.appendChild(labelDiv);
+  block.appendChild(img);
+  block.appendChild(buttonsContainer);
+  
+  currentManual.parts.forEach((part, index) => {
+    const singleCode = extractSingleCode(part);
+    if (singleCode) { createPartButton(buttonsContainer, singleCode.number, singleCode.code, img); } 
+    else if (isCompositePart(part)) { parseCompositeParts(part).forEach(parsedPart => { createPartButton(buttonsContainer, parsedPart.number, parsedPart.code, img); }); } 
+    else { createPartButton(buttonsContainer, part, (index + 1).toString(), img); }
+  });
+  manualContainer.appendChild(block);
+}
+
+// === ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТРИСОВКИ (для одиночного мануала) ===
 function renderManualsByName(name) {
   manualContainer.innerHTML = "";
-  const currentManual = manualsData.find(m => m.name === name);
-  const pdfButton = document.createElement("div");
-  pdfButton.className = "pdf-top-button";
-  pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
-  pdfButton.onclick = () => { if (currentManual && currentManual.pdf) { window.open(currentManual.pdf, '_blank'); } else { alert('PDF для этого мануала не найден'); } };
-  manualContainer.appendChild(pdfButton);
+  appendManualToContainer(name);
+}
+
+// === ИСПРАВЛЕННАЯ ФУНКЦИЯ ПОИСКА — показывает ВСЕ мануалы с совпадениями ===
+function performSearch(searchText) {
+  if (!searchText) {
+    renderManualGroups();
+    return;
+  }
   
-  manualsData.filter(m => m.name === name).forEach(manual => {
-    const block = document.createElement("div"); block.className = "block";
-    
-    // Кликабельная область названия мануала - открывает картинку в новой вкладке (как обычная ссылка)
-    const labelDiv = document.createElement("div");
-    labelDiv.className = "manual-label";
-    labelDiv.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
-    // Прямой переход по ссылке на изображение
-    labelDiv.onclick = (e) => {
-      e.stopPropagation();
-      if (manual.image && manual.image.trim() !== '') {
-        // Открываем картинку в новой вкладке (как если бы перешли по прямой ссылке)
-        window.open(manual.image, '_blank');
-      } else {
-        alert('Изображение отсутствует');
-      }
-    };
-    
-    const img = document.createElement("img");
-    img.className = "top-image clickable-image";
-    img.src = manual.image;
-    img.onerror = () => { img.src = 'https://via.placeholder.com/400x200?text=No+Image'; };
-    
-    const buttonsContainer = document.createElement("div");
-    buttonsContainer.className = "buttons-container";
-    
-    img.onclick = () => { buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex"; };
-    
-    block.appendChild(labelDiv);
-    block.appendChild(img);
-    block.appendChild(buttonsContainer);
-    
-    manual.parts.forEach((part, index) => {
+  // Собираем уникальные названия мануалов, где есть искомая деталь
+  const foundManualNames = new Set();
+  
+  manualsData.forEach(manual => {
+    // Проверяем каждую деталь в мануале
+    const found = manual.parts.some(part => {
       const singleCode = extractSingleCode(part);
-      if (singleCode) { createPartButton(buttonsContainer, singleCode.number, singleCode.code, img); } 
-      else if (isCompositePart(part)) { parseCompositeParts(part).forEach(parsedPart => { createPartButton(buttonsContainer, parsedPart.number, parsedPart.code, img); }); } 
-      else { createPartButton(buttonsContainer, part, (index + 1).toString(), img); }
+      if (singleCode && singleCode.number.includes(searchText)) return true;
+      if (isCompositePart(part)) {
+        return parseCompositeParts(part).some(p => p.number.includes(searchText));
+      }
+      return part.includes(searchText);
     });
-    manualContainer.appendChild(block);
+    
+    if (found) {
+      foundManualNames.add(manual.name);
+    }
   });
+  
+  if (foundManualNames.size === 0) {
+    // Ничего не найдено — показываем сообщение
+    manualContainer.innerHTML = '<div style="padding: 40px; text-align: center; color: #64748b;"><i class="fa-solid fa-search" style="font-size: 48px; margin-bottom: 16px; display: block;"></i>Деталь не найдена<br><small>Проверьте правильность номера</small></div>';
+    searchResults = [];
+    searchNav.style.display = "flex";
+    return;
+  }
+  
+  // Очищаем контейнер и показываем ВСЕ найденные мануалы
+  manualContainer.innerHTML = "";
+  
+  // Добавляем PDF кнопку только если у первого найденного мануала есть PDF
+  const firstManual = manualsData.find(m => m.name === Array.from(foundManualNames)[0]);
+  if (firstManual && firstManual.pdf) {
+    const pdfButton = document.createElement("div");
+    pdfButton.className = "pdf-top-button";
+    pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
+    pdfButton.onclick = () => { window.open(firstManual.pdf, '_blank'); };
+    manualContainer.appendChild(pdfButton);
+  }
+  
+  // Отрисовываем все найденные мануалы
+  foundManualNames.forEach(manualName => {
+    appendManualToContainer(manualName);
+  });
+  
+  // Подсвечиваем найденные детали
+  setTimeout(() => {
+    searchResults = [];
+    document.querySelectorAll(".detail-number").forEach(el => {
+      if (el.textContent.includes(searchText)) {
+        el.classList.add("search-highlight");
+        const block = el.closest('.block');
+        if (block) {
+          const buttonsContainer = block.querySelector('.buttons-container');
+          if (buttonsContainer) {
+            buttonsContainer.style.display = "flex";
+          }
+        }
+        searchResults.push(el);
+      }
+    });
+    
+    if (searchResults.length > 0) {
+      searchResults[0].classList.add("active-highlight");
+      searchResults[0].scrollIntoView({behavior: "smooth", block: "center"});
+    }
+    searchNav.style.display = "flex";
+  }, 150);
+}
+
+// Обновляем обработчик поиска
+searchInput.oninput = e => {
+  const searchText = e.target.value.trim();
+  performSearch(searchText);
+};
+
+function clearSearch() {
+  searchInput.value = "";
+  searchResults = []; currentIndex = 0;
+  renderManualGroups();
+  searchNav.style.display = "none";
+}
+
+function nextResult() {
+  if (!searchResults.length) return;
+  searchResults[currentIndex].classList.remove("active-highlight");
+  currentIndex = (currentIndex + 1) % searchResults.length;
+  searchResults[currentIndex].classList.add("active-highlight");
+  searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
+}
+
+function prevResult() {
+  if (!searchResults.length) return;
+  searchResults[currentIndex].classList.remove("active-highlight");
+  currentIndex = (currentIndex - 1 + searchResults.length) % searchResults.length;
+  searchResults[currentIndex].classList.add("active-highlight");
+  searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
 }
 
 function createPartButton(container, partNumber, label, image) {
@@ -1092,64 +1204,8 @@ function handleClubClick(club, part, event) {
   event.stopPropagation();
   const partData = stockData[part];
   if (partData && partData[club] && partData[club].image && partData[club].image.trim() !== '') {
-    // Открываем изображение склада в новой вкладке
     window.open(partData[club].image, '_blank');
   }
-}
-
-function clearSearch() {
-  searchInput.value = "";
-  searchResults = []; currentIndex = 0;
-  document.querySelectorAll(".search-highlight,.active-highlight").forEach(el => el.classList.remove("search-highlight", "active-highlight"));
-  renderManualGroups();
-  searchNav.style.display = "none";
-}
-
-searchInput.oninput = e => {
-  const v = e.target.value.trim();
-  searchResults = []; currentIndex = 0;
-  document.querySelectorAll(".search-highlight,.active-highlight").forEach(el => el.classList.remove("search-highlight", "active-highlight"));
-  if (!v) { renderManualGroups(); return; }
-  searchNav.style.display = "flex";
-  manualsData.forEach(m => {
-    let hasMatch = false;
-    const checkPart = (part) => {
-      const singleCode = extractSingleCode(part);
-      if (singleCode && singleCode.number.includes(v)) return true;
-      if (isCompositePart(part)) { return parseCompositeParts(part).some(p => p.number.includes(v)); }
-      return part.includes(v);
-    };
-    if (m.parts.some(checkPart)) {
-      hasMatch = true;
-      renderManualsByName(m.name);
-      setTimeout(() => {
-        document.querySelectorAll(".detail-number").forEach(el => {
-          if (el.textContent.includes(v)) {
-            el.classList.add("search-highlight");
-            el.parentElement.parentElement.style.display = "flex";
-            searchResults.push(el);
-          }
-        });
-        if (searchResults[0]) { searchResults[0].classList.add("active-highlight"); searchResults[0].scrollIntoView({behavior: "smooth", block: "center"}); }
-      }, 100);
-    }
-  });
-};
-
-function nextResult() {
-  if (!searchResults.length) return;
-  searchResults[currentIndex].classList.remove("active-highlight");
-  currentIndex = (currentIndex + 1) % searchResults.length;
-  searchResults[currentIndex].classList.add("active-highlight");
-  searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
-}
-
-function prevResult() {
-  if (!searchResults.length) return;
-  searchResults[currentIndex].classList.remove("active-highlight");
-  currentIndex = (currentIndex - 1 + searchResults.length) % searchResults.length;
-  searchResults[currentIndex].classList.add("active-highlight");
-  searchResults[currentIndex].scrollIntoView({behavior: "smooth", block: "center"});
 }
 
 window.addEventListener('load', function() {
