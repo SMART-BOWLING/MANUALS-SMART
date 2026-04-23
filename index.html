@@ -718,6 +718,7 @@ let manualsData = [];
 let stockData = {};
 let searchResults = [];
 let currentIndex = 0;
+let isSearchMode = false; // Флаг для отслеживания режима поиска
 
 const searchNav = document.getElementById("searchNav");
 const manualContainer = document.getElementById("manualContainer");
@@ -977,6 +978,7 @@ function parseCompositeParts(partString) {
 }
 
 function renderManualGroups() {
+  isSearchMode = false;
   manualContainer.innerHTML = "";
   const uniqueNames = [...new Set(manualsData.map(m => m.name))];
   uniqueNames.forEach(name => {
@@ -993,12 +995,12 @@ function renderManualGroups() {
   searchNav.style.display = "none";
 }
 
-// ИСПРАВЛЕНА ФУНКЦИЯ РЕНДЕРИНГА МАНУАЛА
 function renderManualsByName(name) {
+  isSearchMode = false;
   manualContainer.innerHTML = "";
   const currentManual = manualsData.find(m => m.name === name);
   
-  // Добавляем PDF кнопку
+  // Добавляем PDF кнопку ТОЛЬКО в обычном режиме (не поиск)
   const pdfButton = document.createElement("div");
   pdfButton.className = "pdf-top-button";
   pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
@@ -1011,8 +1013,8 @@ function renderManualsByName(name) {
   });
 }
 
-// НОВАЯ ФУНКЦИЯ: рендеринг одного мануала в указанный контейнер
-function renderSingleManual(manual, container) {
+// Функция рендеринга одного мануала
+function renderSingleManual(manual, container, hidePdfButton = false) {
   const block = document.createElement("div"); 
   block.className = "block";
   block.dataset.manualName = manual.name;
@@ -1112,7 +1114,7 @@ function clearSearch() {
   searchNav.style.display = "none";
 }
 
-// ИСПРАВЛЕНА ФУНКЦИЯ ПОИСКА - ТЕПЕРЬ ПОКАЗЫВАЕТ ВСЕ МАНУАЛЫ С НАЙДЕННЫМИ НОМЕРАМИ
+// ИСПРАВЛЕНА ФУНКЦИЯ ПОИСКА - БЕЗ КНОПОК PDF
 searchInput.oninput = e => {
   const searchTerm = e.target.value.trim();
   searchResults = []; 
@@ -1125,9 +1127,10 @@ searchInput.oninput = e => {
     return; 
   }
   
+  isSearchMode = true;
   searchNav.style.display = "flex";
   
-  // Очищаем контейнер и собираем все мануалы, где есть совпадения
+  // Очищаем контейнер
   manualContainer.innerHTML = "";
   
   // Перебираем все мануалы
@@ -1142,23 +1145,10 @@ searchInput.oninput = e => {
       return part.includes(searchTerm);
     });
     
-    // Если есть совпадение - рендерим этот мануал
+    // Если есть совпадение - рендерим этот мануал (БЕЗ PDF кнопки)
     if (hasMatch) {
-      // Добавляем PDF кнопку для этого мануала
-      const pdfButton = document.createElement("div");
-      pdfButton.className = "pdf-top-button";
-      pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
-      pdfButton.onclick = () => { 
-        if (manual.pdf) { 
-          window.open(manual.pdf, '_blank'); 
-        } else { 
-          alert('PDF для этого мануала не найден'); 
-        } 
-      };
-      manualContainer.appendChild(pdfButton);
-      
-      // Рендерим сам мануал
-      renderSingleManual(manual, manualContainer);
+      // НЕ добавляем PDF кнопку при поиске
+      renderSingleManual(manual, manualContainer, true);
     }
   });
   
