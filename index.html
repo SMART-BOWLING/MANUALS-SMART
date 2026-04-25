@@ -150,7 +150,7 @@ header {
   color: #dc143c;
 }
 
-/* ===== ОБЛАСТЬ НАЗВАНИЯ МАНУАЛА - КЛИКАБЕЛЬНА ДЛЯ ПЕРЕХОДА ПО ПРЯМОЙ ССЫЛКЕ НА КАРТИНКУ ===== */
+/* ===== ОБЛАСТЬ НАЗВАНИЯ МАНУАЛА ===== */
 .manual-label {
   background:#1f2937;
   color:white;
@@ -181,6 +181,11 @@ header {
   transform: scale(0.99);
 }
 
+.manual-label-left i {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
 .manual-label-actions {
   display: flex;
   align-items: center;
@@ -209,21 +214,9 @@ header {
   transform: scale(0.95);
 }
 
-.image-open-btn {
-  background: rgba(255,255,255,0.15) !important;
-}
-
-.point-mode-btn {
-  background: rgba(255,255,255,0.1) !important;
-}
-
 .point-mode-btn.active {
   background: #dc143c !important;
   color: white;
-}
-
-.manual-label i {
-  font-size: 14px;
 }
 
 .top-image {
@@ -233,13 +226,10 @@ header {
   border-bottom:1px solid #eee;
   transition:0.3s;
   position: relative;
+  cursor: pointer;
 }
 
-.clickable-image {
-  cursor:pointer;
-}
-
-.clickable-image:hover {
+.top-image:hover {
   opacity:0.9;
 }
 
@@ -894,7 +884,7 @@ function drawPointsOnImage(manualName) {
     points.forEach(point => {
         const x = point.x * canvas.width;
         const y = point.y * canvas.height;
-        // РАДИУС В 2 РАЗА МЕНЬШЕ: было 12-24, стало 6-12
+        // РАДИУС В 2 РАЗА МЕНЬШЕ
         const radius = Math.max(6, Math.min(12, canvas.width / 100));
         
         ctx.beginPath();
@@ -1026,7 +1016,7 @@ function showPointToast(message) {
 }
 
 // Настройка обработчика кликов на изображении
-function setupImageClickHandler(img, manualName) {
+function setupImageClickHandler(img, manualName, buttonsContainer) {
     let wrapper = img.parentElement;
     if (!wrapper.classList.contains('image-wrapper')) {
         const newWrapper = document.createElement('div');
@@ -1036,11 +1026,17 @@ function setupImageClickHandler(img, manualName) {
         wrapper = newWrapper;
     }
     
-    const handleAddPoint = (clientX, clientY) => {
-        // Добавляем точку ТОЛЬКО если включен режим
+    // Функция для открытия/закрытия списка деталей (было раньше)
+    const togglePartsList = (e) => {
+        e.stopPropagation();
+        buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex";
+    };
+    
+    // Функция для добавления точки
+    const addPoint = (clientX, clientY) => {
         if (!activePointMode[manualName]) {
-            showPointToast('⚠️ Сначала включите режим добавления точек (кнопка слева от названия)');
-            return;
+            showPointToast('⚠️ Сначала включите режим добавления точек (кнопка с кружком)');
+            return false;
         }
         
         const rect = wrapper.getBoundingClientRect();
@@ -1054,30 +1050,42 @@ function setupImageClickHandler(img, manualName) {
                 updatePointsListInUI(manualName);
                 showPointToast(`✓ Точка ${partNumber} добавлена`);
             }
+            return true;
+        }
+        return false;
+    };
+    
+    // Обработчик клика: если включен режим точек - добавляем точку, иначе открываем список
+    img.onclick = (e) => {
+        e.stopPropagation();
+        
+        if (activePointMode[manualName]) {
+            // Режим добавления точек - добавляем точку
+            const rect = wrapper.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            addPoint(clientX, clientY);
+        } else {
+            // Обычный режим - открываем/закрываем список деталей
+            togglePartsList(e);
         }
     };
     
-    img.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rect = wrapper.getBoundingClientRect();
-        let clientX, clientY;
-        
-        if (e.touches) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
-        
-        handleAddPoint(clientX, clientY);
-    });
-    
+    // Для мобильных устройств
     img.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const touch = e.touches[0];
-        handleAddPoint(touch.clientX, touch.clientY);
+        if (activePointMode[manualName]) {
+            e.preventDefault();
+            e.stopPropagation();
+            const touch = e.touches[0];
+            addPoint(touch.clientX, touch.clientY);
+        }
     });
     
     if (img.complete) {
@@ -1426,11 +1434,11 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
     }
   };
   
-  // Правая часть - кнопки
+  // Правая часть - кнопка режима точек
   const actionButtons = document.createElement("div");
   actionButtons.className = "manual-label-actions";
   
-  // Кнопка режима добавления точек (слева от кнопки открытия картинки)
+  // Кнопка режима добавления точек
   const pointModeBtn = document.createElement("button");
   pointModeBtn.className = "point-mode-btn";
   pointModeBtn.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
@@ -1440,40 +1448,18 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
     togglePointMode(manual.name, pointModeBtn);
   };
   
-  // Кнопка открытия картинки
-  const openImageBtn = document.createElement("button");
-  openImageBtn.className = "image-open-btn";
-  openImageBtn.innerHTML = '<i class="fa-regular fa-image"></i>';
-  openImageBtn.title = "Открыть картинку в новом окне";
-  openImageBtn.onclick = (e) => {
-    e.stopPropagation();
-    if (manual.image && manual.image.trim() !== '') {
-      window.open(manual.image, '_blank');
-    } else {
-      alert('Изображение отсутствует');
-    }
-  };
-  
   actionButtons.appendChild(pointModeBtn);
-  actionButtons.appendChild(openImageBtn);
   
   labelDiv.appendChild(leftPart);
   labelDiv.appendChild(actionButtons);
   
   const img = document.createElement("img");
-  img.className = "top-image clickable-image";
+  img.className = "top-image";
   img.src = manual.image;
   img.onerror = () => { img.src = 'https://via.placeholder.com/400x200?text=No+Image'; };
   
   const buttonsContainer = document.createElement("div");
   buttonsContainer.className = "buttons-container";
-  
-  // Старый обработчик клика по картинке для скрытия/показа кнопок теперь не мешает
-  // Но мы оставляем его отдельно
-  img.onclick = (e) => {
-    e.stopPropagation();
-    buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex";
-  };
   
   block.appendChild(labelDiv);
   block.appendChild(img);
@@ -1481,15 +1467,15 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
   
   manual.parts.forEach((part, index) => {
     const singleCode = extractSingleCode(part);
-    if (singleCode) { createPartButton(buttonsContainer, singleCode.number, singleCode.code, img); } 
-    else if (isCompositePart(part)) { parseCompositeParts(part).forEach(parsedPart => { createPartButton(buttonsContainer, parsedPart.number, parsedPart.code, img); }); } 
-    else { createPartButton(buttonsContainer, part, (index + 1).toString(), img); }
+    if (singleCode) { createPartButton(buttonsContainer, singleCode.number, singleCode.code); } 
+    else if (isCompositePart(part)) { parseCompositeParts(part).forEach(parsedPart => { createPartButton(buttonsContainer, parsedPart.number, parsedPart.code); }); } 
+    else { createPartButton(buttonsContainer, part, (index + 1).toString()); }
   });
   
   container.appendChild(block);
   
-  // Настраиваем обработчик кликов на изображении для добавления точек
-  setupImageClickHandler(img, manual.name);
+  // Настраиваем обработчик кликов на изображении
+  setupImageClickHandler(img, manual.name, buttonsContainer);
   
   // Рисуем точки после загрузки изображения
   if (img.complete) {
@@ -1503,7 +1489,7 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
   }
 }
 
-function createPartButton(container, partNumber, label, image) {
+function createPartButton(container, partNumber, label) {
   const btn = document.createElement("div");
   btn.className = "btn";
   btn.innerHTML = `<span>${label}</span><span class="detail-number">${partNumber}</span>`;
@@ -1519,7 +1505,6 @@ function createPartButton(container, partNumber, label, image) {
       return;
     }
     toggleDetail(btn);
-    if (image) { image.classList.add("highlight-image"); setTimeout(() => image.classList.remove("highlight-image"), 800); }
   };
   container.appendChild(btn);
 }
