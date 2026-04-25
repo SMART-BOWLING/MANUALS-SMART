@@ -237,7 +237,7 @@ header {
   box-shadow:0 0 0 3px #dc143c inset;
 }
 
-/* Стили для рисования точек на картинке */
+/* Стили для рисования точек на картинке - УЛУЧШЕНО ДЛЯ МОБИЛЬНЫХ */
 .image-points-canvas {
   position: absolute;
   top: 0;
@@ -246,6 +246,8 @@ header {
   height: 100%;
   pointer-events: none;
   z-index: 5;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 .image-wrapper {
@@ -801,12 +803,9 @@ header {
 
 <script>
 // ========== СИСТЕМА ДОБАВЛЕНИЯ ТОЧЕК ==========
-// Хранилище точек для каждого мануала
-let allPoints = {}; // { manualName: [{ x, y, number, percentX, percentY }] }
-// Активный режим для каждого мануала
-let activePointMode = {}; // { manualName: true/false }
+let allPoints = {};
+let activePointMode = {};
 
-// Загрузка сохраненных точек
 function loadPointsForManual(manualName) {
     const saved = localStorage.getItem(`points_${manualName}`);
     if (saved) {
@@ -819,12 +818,10 @@ function loadPointsForManual(manualName) {
     return allPoints[manualName];
 }
 
-// Сохранение точек для мануала
 function savePointsForManual(manualName) {
     localStorage.setItem(`points_${manualName}`, JSON.stringify(allPoints[manualName] || []));
 }
 
-// Добавление точки
 function addPointToManual(manualName, xPercent, yPercent, number) {
     if (!allPoints[manualName]) allPoints[manualName] = [];
     allPoints[manualName].push({
@@ -837,7 +834,6 @@ function addPointToManual(manualName, xPercent, yPercent, number) {
     drawPointsOnImage(manualName);
 }
 
-// Удаление точки
 function deletePointFromManual(manualName, index) {
     if (allPoints[manualName] && allPoints[manualName][index]) {
         allPoints[manualName].splice(index, 1);
@@ -847,7 +843,7 @@ function deletePointFromManual(manualName, index) {
     }
 }
 
-// Рисование точек на канвасе (РАЗМЕР В 2 РАЗА МЕНЬШЕ)
+// УЛУЧШЕННАЯ ОТРИСОВКА ТОЧЕК - ЧЕТКИЕ КРУЖКИ
 function drawPointsOnImage(manualName) {
     const block = document.querySelector(`.block[data-manual-name="${manualName}"]`);
     if (!block) return;
@@ -870,45 +866,58 @@ function drawPointsOnImage(manualName) {
     }
     
     const rect = wrapper.getBoundingClientRect();
+    const devicePixelRatio = window.devicePixelRatio || 1;
     
-    canvas.width = rect.width;
-    canvas.height = rect.height;
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    canvas.width = rect.width * devicePixelRatio;
+    canvas.height = rect.height * devicePixelRatio;
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
     
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+    ctx.clearRect(0, 0, rect.width, rect.height);
     
     const points = allPoints[manualName] || [];
     
     points.forEach(point => {
-        const x = point.x * canvas.width;
-        const y = point.y * canvas.height;
-        // РАДИУС В 2 РАЗА МЕНЬШЕ
-        const radius = Math.max(6, Math.min(12, canvas.width / 100));
+        const x = point.x * rect.width;
+        const y = point.y * rect.height;
         
+        // Размер маркера зависит от ширины экрана
+        let radius;
+        if (rect.width < 500) {
+            radius = 10; // телефоны
+        } else if (rect.width < 800) {
+            radius = 12; // планшеты
+        } else {
+            radius = 14; // десктоп
+        }
+        
+        // Внешнее свечение (полупрозрачное)
         ctx.beginPath();
         ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgba(220, 20, 60, 0.2)';
+        ctx.fillStyle = 'rgba(220, 20, 60, 0.25)';
         ctx.fill();
         
+        // Основной кружок (четкий)
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
         ctx.fillStyle = '#dc143c';
         ctx.fill();
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
         ctx.stroke();
         
-        ctx.font = `bold ${Math.floor(radius * 1)}px "Segoe UI"`;
-        ctx.fillStyle = 'white';
+        // Номер детали
+        const fontSize = Math.max(11, Math.min(16, radius));
+        ctx.font = `bold ${fontSize}px "Segoe UI", -apple-system, system-ui`;
+        ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(point.number, x, y);
     });
 }
 
-// Обновление списка точек в UI
 function updatePointsListInUI(manualName) {
     const block = document.querySelector(`.block[data-manual-name="${manualName}"]`);
     if (!block) return;
@@ -974,24 +983,20 @@ function updatePointsListInUI(manualName) {
     buttonsContainer.appendChild(pointsSection);
 }
 
-// Включение/выключение режима добавления точек
 function togglePointMode(manualName, btnElement) {
     if (activePointMode[manualName]) {
-        // Выключаем режим
         activePointMode[manualName] = false;
         btnElement.classList.remove('active');
         btnElement.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
         document.getElementById('pointModeIndicator').style.display = 'none';
         showPointToast('Режим добавления точек выключен');
     } else {
-        // Включаем режим
         activePointMode[manualName] = true;
         btnElement.classList.add('active');
         btnElement.innerHTML = '<i class="fa-solid fa-dot-circle"></i>';
         document.getElementById('pointModeIndicator').style.display = 'flex';
         showPointToast('Режим добавления точек включен. Нажмите на схему, чтобы добавить точку');
         
-        // Автоматически выключаем через 30 секунд
         setTimeout(() => {
             if (activePointMode[manualName]) {
                 activePointMode[manualName] = false;
@@ -1004,7 +1009,6 @@ function togglePointMode(manualName, btnElement) {
     }
 }
 
-// Показать уведомление
 function showPointToast(message) {
     const existing = document.querySelector('.point-toast');
     if (existing) existing.remove();
@@ -1015,7 +1019,6 @@ function showPointToast(message) {
     setTimeout(() => toast.remove(), 2000);
 }
 
-// Настройка обработчика кликов на изображении
 function setupImageClickHandler(img, manualName, buttonsContainer) {
     let wrapper = img.parentElement;
     if (!wrapper.classList.contains('image-wrapper')) {
@@ -1026,13 +1029,11 @@ function setupImageClickHandler(img, manualName, buttonsContainer) {
         wrapper = newWrapper;
     }
     
-    // Функция для открытия/закрытия списка деталей (было раньше)
     const togglePartsList = (e) => {
         e.stopPropagation();
         buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex";
     };
     
-    // Функция для добавления точки
     const addPoint = (clientX, clientY) => {
         if (!activePointMode[manualName]) {
             showPointToast('⚠️ Сначала включите режим добавления точек (кнопка с кружком)');
@@ -1055,15 +1056,11 @@ function setupImageClickHandler(img, manualName, buttonsContainer) {
         return false;
     };
     
-    // Обработчик клика: если включен режим точек - добавляем точку, иначе открываем список
     img.onclick = (e) => {
         e.stopPropagation();
-        
         if (activePointMode[manualName]) {
-            // Режим добавления точек - добавляем точку
             const rect = wrapper.getBoundingClientRect();
             let clientX, clientY;
-            
             if (e.touches) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
@@ -1073,12 +1070,10 @@ function setupImageClickHandler(img, manualName, buttonsContainer) {
             }
             addPoint(clientX, clientY);
         } else {
-            // Обычный режим - открываем/закрываем список деталей
             togglePartsList(e);
         }
     };
     
-    // Для мобильных устройств
     img.addEventListener('touchstart', (e) => {
         if (activePointMode[manualName]) {
             e.preventDefault();
@@ -1151,7 +1146,6 @@ document.addEventListener("touchend", function (event) {
   lastTouchEnd = now;
 }, false);
 
-// Авторизация
 function loadSheetsAPI() {
   return new Promise((resolve, reject) => {
     gapi.load('client', {
@@ -1273,7 +1267,6 @@ function signOut() {
   }
 }
 
-// Загрузка данных
 async function loadFromGoogleSheets() {
   try {
     const manualsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${MANUALS_RANGE}?key=${API_KEY}`;
@@ -1408,20 +1401,16 @@ function renderManualsByName(name) {
   });
 }
 
-// МОДИФИЦИРОВАННАЯ ФУНКЦИЯ - добавляем кнопку режима точек
 function renderSingleManual(manual, container, hidePdfButton = false) {
   const block = document.createElement("div"); 
   block.className = "block";
   block.dataset.manualName = manual.name;
   
-  // Загружаем точки для этого мануала
   loadPointsForManual(manual.name);
   
-  // Создаем панель с названием и кнопками
   const labelDiv = document.createElement("div");
   labelDiv.className = "manual-label";
   
-  // Левая часть - название (кликабельная для открытия картинки)
   const leftPart = document.createElement("div");
   leftPart.className = "manual-label-left";
   leftPart.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
@@ -1434,11 +1423,9 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
     }
   };
   
-  // Правая часть - кнопка режима точек
   const actionButtons = document.createElement("div");
   actionButtons.className = "manual-label-actions";
   
-  // Кнопка режима добавления точек
   const pointModeBtn = document.createElement("button");
   pointModeBtn.className = "point-mode-btn";
   pointModeBtn.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
@@ -1474,10 +1461,8 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
   
   container.appendChild(block);
   
-  // Настраиваем обработчик кликов на изображении
   setupImageClickHandler(img, manual.name, buttonsContainer);
   
-  // Рисуем точки после загрузки изображения
   if (img.complete) {
     drawPointsOnImage(manual.name);
     updatePointsListInUI(manual.name);
