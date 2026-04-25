@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -150,7 +150,7 @@ header {
   color: #dc143c;
 }
 
-/* ===== ОБЛАСТЬ НАЗВАНИЯ МАНУАЛА ===== */
+/* ===== ОБЛАСТЬ НАЗВАНИЯ МАНУАЛА - КЛИКАБЕЛЬНА ДЛЯ ПЕРЕХОДА ПО ПРЯМОЙ ССЫЛКЕ НА КАРТИНКУ ===== */
 .manual-label {
   background:#1f2937;
   color:white;
@@ -158,65 +158,27 @@ header {
   font-size:16px;
   font-weight:600;
   border-radius:6px 6px 0 0;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
   display: flex;
   align-items: center;
   justify-content: space-between;
   user-select: none;
+  text-decoration: none;
 }
-
-.manual-label-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  flex: 1;
-}
-
-.manual-label-left:hover {
+.manual-label:hover {
   background:#2d3a4a;
-  border-radius: 4px;
 }
-
-.manual-label-left:active {
+.manual-label:active {
   transform: scale(0.99);
 }
-
-.manual-label-left i {
+.manual-label i {
   font-size: 14px;
   opacity: 0.7;
+  transition: opacity 0.2s;
 }
-
-.manual-label-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.manual-label-actions button {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 6px;
-  transition: all 0.2s;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.manual-label-actions button:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-.manual-label-actions button:active {
-  transform: scale(0.95);
-}
-
-.point-mode-btn.active {
-  background: #dc143c !important;
-  color: white;
+.manual-label:hover i {
+  opacity: 1;
 }
 
 .top-image {
@@ -225,35 +187,18 @@ header {
   display:block;
   border-bottom:1px solid #eee;
   transition:0.3s;
-  position: relative;
-  cursor: pointer;
 }
 
-.top-image:hover {
+.clickable-image {
+  cursor:pointer;
+}
+
+.clickable-image:hover {
   opacity:0.9;
 }
 
 .top-image.highlight-image {
   box-shadow:0 0 0 3px #dc143c inset;
-}
-
-/* Стили для рисования точек на картинке - УЛУЧШЕНО ДЛЯ МОБИЛЬНЫХ */
-.image-points-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 5;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-}
-
-.image-wrapper {
-  position: relative;
-  display: inline-block;
-  width: 100%;
 }
 
 .buttons-container {
@@ -680,48 +625,6 @@ header {
   border-top-color: #dc143c;
   animation: spin 1s ease-in-out infinite;
 }
-
-/* Стиль для уведомления */
-.point-toast {
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1f2937;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 40px;
-  font-size: 13px;
-  z-index: 2000;
-  animation: fadeOut 2s ease forwards;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.point-mode-indicator {
-  position: fixed;
-  top: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #dc143c;
-  color: white;
-  padding: 6px 16px;
-  border-radius: 40px;
-  font-size: 13px;
-  z-index: 2000;
-  display: none;
-  gap: 8px;
-  align-items: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  white-space: nowrap;
-}
-
-@keyframes fadeOut {
-  0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
-  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
-}
 </style>
 </head>
 <body>
@@ -795,302 +698,7 @@ header {
   </div>
 </div>
 
-<!-- Индикатор режима добавления точек -->
-<div class="point-mode-indicator" id="pointModeIndicator">
-  <i class="fa-solid fa-plus-circle"></i>
-  <span>Режим добавления точек активен. Нажмите на схему...</span>
-</div>
-
 <script>
-// ========== СИСТЕМА ДОБАВЛЕНИЯ ТОЧЕК ==========
-let allPoints = {};
-let activePointMode = {};
-
-function loadPointsForManual(manualName) {
-    const saved = localStorage.getItem(`points_${manualName}`);
-    if (saved) {
-        try {
-            allPoints[manualName] = JSON.parse(saved);
-        } catch(e) { allPoints[manualName] = []; }
-    } else {
-        allPoints[manualName] = [];
-    }
-    return allPoints[manualName];
-}
-
-function savePointsForManual(manualName) {
-    localStorage.setItem(`points_${manualName}`, JSON.stringify(allPoints[manualName] || []));
-}
-
-function addPointToManual(manualName, xPercent, yPercent, number) {
-    if (!allPoints[manualName]) allPoints[manualName] = [];
-    allPoints[manualName].push({
-        x: xPercent,
-        y: yPercent,
-        number: number,
-        createdAt: Date.now()
-    });
-    savePointsForManual(manualName);
-    drawPointsOnImage(manualName);
-}
-
-function deletePointFromManual(manualName, index) {
-    if (allPoints[manualName] && allPoints[manualName][index]) {
-        allPoints[manualName].splice(index, 1);
-        savePointsForManual(manualName);
-        drawPointsOnImage(manualName);
-        updatePointsListInUI(manualName);
-    }
-}
-
-// УЛУЧШЕННАЯ ОТРИСОВКА ТОЧЕК - ЧЕТКИЕ КРУЖКИ
-function drawPointsOnImage(manualName) {
-    const block = document.querySelector(`.block[data-manual-name="${manualName}"]`);
-    if (!block) return;
-    
-    const img = block.querySelector('.top-image');
-    const wrapper = block.querySelector('.image-wrapper');
-    if (!wrapper) return;
-    
-    let canvas = wrapper.querySelector('.image-points-canvas');
-    if (!canvas) {
-        canvas = document.createElement('canvas');
-        canvas.className = 'image-points-canvas';
-        wrapper.style.position = 'relative';
-        wrapper.appendChild(canvas);
-    }
-    
-    if (!img.complete || img.naturalWidth === 0) {
-        img.onload = () => drawPointsOnImage(manualName);
-        return;
-    }
-    
-    const rect = wrapper.getBoundingClientRect();
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * devicePixelRatio;
-    canvas.height = rect.height * devicePixelRatio;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.scale(devicePixelRatio, devicePixelRatio);
-    ctx.clearRect(0, 0, rect.width, rect.height);
-    
-    const points = allPoints[manualName] || [];
-    
-    points.forEach(point => {
-        const x = point.x * rect.width;
-        const y = point.y * rect.height;
-        
-        // Размер маркера зависит от ширины экрана
-        let radius;
-        if (rect.width < 500) {
-            radius = 10; // телефоны
-        } else if (rect.width < 800) {
-            radius = 12; // планшеты
-        } else {
-            radius = 14; // десктоп
-        }
-        
-        // Внешнее свечение (полупрозрачное)
-        ctx.beginPath();
-        ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
-        ctx.fillStyle = 'rgba(220, 20, 60, 0.25)';
-        ctx.fill();
-        
-        // Основной кружок (четкий)
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = '#dc143c';
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Номер детали
-        const fontSize = Math.max(11, Math.min(16, radius));
-        ctx.font = `bold ${fontSize}px "Segoe UI", -apple-system, system-ui`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(point.number, x, y);
-    });
-}
-
-function updatePointsListInUI(manualName) {
-    const block = document.querySelector(`.block[data-manual-name="${manualName}"]`);
-    if (!block) return;
-    
-    const buttonsContainer = block.querySelector('.buttons-container');
-    if (!buttonsContainer) return;
-    
-    const oldPointsSection = block.querySelector('.points-management-section');
-    if (oldPointsSection) oldPointsSection.remove();
-    
-    const points = allPoints[manualName] || [];
-    if (points.length === 0) return;
-    
-    const pointsSection = document.createElement('div');
-    pointsSection.className = 'points-management-section';
-    pointsSection.style.borderTop = '1px solid #eee';
-    pointsSection.style.background = '#f8f9fa';
-    pointsSection.style.padding = '8px 12px';
-    
-    const title = document.createElement('div');
-    title.style.fontSize = '12px';
-    title.style.fontWeight = '600';
-    title.style.color = '#6b7280';
-    title.style.marginBottom = '8px';
-    title.style.padding = '4px 0';
-    title.innerHTML = '<i class="fa-solid fa-location-dot"></i> Точки на схеме:';
-    pointsSection.appendChild(title);
-    
-    points.forEach((point, idx) => {
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'center';
-        row.style.padding = '4px 0';
-        row.style.fontSize = '13px';
-        row.style.borderBottom = '1px solid #e5e7eb';
-        
-        const numberSpan = document.createElement('span');
-        numberSpan.style.color = '#dc143c';
-        numberSpan.style.fontWeight = '600';
-        numberSpan.textContent = `№${point.number}`;
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
-        deleteBtn.style.background = 'none';
-        deleteBtn.style.border = 'none';
-        deleteBtn.style.color = '#9ca3af';
-        deleteBtn.style.cursor = 'pointer';
-        deleteBtn.style.padding = '4px 8px';
-        deleteBtn.style.borderRadius = '4px';
-        deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm(`Удалить точку №${point.number}?`)) {
-                deletePointFromManual(manualName, idx);
-            }
-        };
-        
-        row.appendChild(numberSpan);
-        row.appendChild(deleteBtn);
-        pointsSection.appendChild(row);
-    });
-    
-    buttonsContainer.appendChild(pointsSection);
-}
-
-function togglePointMode(manualName, btnElement) {
-    if (activePointMode[manualName]) {
-        activePointMode[manualName] = false;
-        btnElement.classList.remove('active');
-        btnElement.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
-        document.getElementById('pointModeIndicator').style.display = 'none';
-        showPointToast('Режим добавления точек выключен');
-    } else {
-        activePointMode[manualName] = true;
-        btnElement.classList.add('active');
-        btnElement.innerHTML = '<i class="fa-solid fa-dot-circle"></i>';
-        document.getElementById('pointModeIndicator').style.display = 'flex';
-        showPointToast('Режим добавления точек включен. Нажмите на схему, чтобы добавить точку');
-        
-        setTimeout(() => {
-            if (activePointMode[manualName]) {
-                activePointMode[manualName] = false;
-                btnElement.classList.remove('active');
-                btnElement.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
-                document.getElementById('pointModeIndicator').style.display = 'none';
-                showPointToast('Режим добавления точек автоматически выключен');
-            }
-        }, 30000);
-    }
-}
-
-function showPointToast(message) {
-    const existing = document.querySelector('.point-toast');
-    if (existing) existing.remove();
-    const toast = document.createElement('div');
-    toast.className = 'point-toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2000);
-}
-
-function setupImageClickHandler(img, manualName, buttonsContainer) {
-    let wrapper = img.parentElement;
-    if (!wrapper.classList.contains('image-wrapper')) {
-        const newWrapper = document.createElement('div');
-        newWrapper.className = 'image-wrapper';
-        img.parentElement.insertBefore(newWrapper, img);
-        newWrapper.appendChild(img);
-        wrapper = newWrapper;
-    }
-    
-    const togglePartsList = (e) => {
-        e.stopPropagation();
-        buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex";
-    };
-    
-    const addPoint = (clientX, clientY) => {
-        if (!activePointMode[manualName]) {
-            showPointToast('⚠️ Сначала включите режим добавления точек (кнопка с кружком)');
-            return false;
-        }
-        
-        const rect = wrapper.getBoundingClientRect();
-        const percentX = (clientX - rect.left) / rect.width;
-        const percentY = (clientY - rect.top) / rect.height;
-        
-        if (percentX >= 0 && percentX <= 1 && percentY >= 0 && percentY <= 1) {
-            const partNumber = prompt('Введите номер детали:', '');
-            if (partNumber && partNumber.trim()) {
-                addPointToManual(manualName, percentX, percentY, partNumber.trim());
-                updatePointsListInUI(manualName);
-                showPointToast(`✓ Точка ${partNumber} добавлена`);
-            }
-            return true;
-        }
-        return false;
-    };
-    
-    img.onclick = (e) => {
-        e.stopPropagation();
-        if (activePointMode[manualName]) {
-            const rect = wrapper.getBoundingClientRect();
-            let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-            addPoint(clientX, clientY);
-        } else {
-            togglePartsList(e);
-        }
-    };
-    
-    img.addEventListener('touchstart', (e) => {
-        if (activePointMode[manualName]) {
-            e.preventDefault();
-            e.stopPropagation();
-            const touch = e.touches[0];
-            addPoint(touch.clientX, touch.clientY);
-        }
-    });
-    
-    if (img.complete) {
-        drawPointsOnImage(manualName);
-    } else {
-        img.onload = () => drawPointsOnImage(manualName);
-    }
-}
-// ========== КОНЕЦ СИСТЕМЫ ТОЧЕК ==========
-
 // Конфигурация Google Sheets
 const AUTH_SPREADSHEET_ID = '1-yiVdZYa6wJdupTiuiHvI_ht3Vu73RUjyCehZqs2cJ4';
 const AUTH_SHEET_NAME = '1';
@@ -1110,7 +718,7 @@ let manualsData = [];
 let stockData = {};
 let searchResults = [];
 let currentIndex = 0;
-let isSearchMode = false;
+let isSearchMode = false; // Флаг для отслеживания режима поиска
 
 const searchNav = document.getElementById("searchNav");
 const manualContainer = document.getElementById("manualContainer");
@@ -1146,6 +754,7 @@ document.addEventListener("touchend", function (event) {
   lastTouchEnd = now;
 }, false);
 
+// Авторизация
 function loadSheetsAPI() {
   return new Promise((resolve, reject) => {
     gapi.load('client', {
@@ -1267,6 +876,7 @@ function signOut() {
   }
 }
 
+// Загрузка данных
 async function loadFromGoogleSheets() {
   try {
     const manualsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${MANUALS_RANGE}?key=${API_KEY}`;
@@ -1390,31 +1000,30 @@ function renderManualsByName(name) {
   manualContainer.innerHTML = "";
   const currentManual = manualsData.find(m => m.name === name);
   
+  // Добавляем PDF кнопку ТОЛЬКО в обычном режиме (не поиск)
   const pdfButton = document.createElement("div");
   pdfButton.className = "pdf-top-button";
   pdfButton.innerHTML = '<i class="fa-solid fa-file-pdf"></i> MANUAL PDF';
   pdfButton.onclick = () => { if (currentManual && currentManual.pdf) { window.open(currentManual.pdf, '_blank'); } else { alert('PDF для этого мануала не найден'); } };
   manualContainer.appendChild(pdfButton);
   
+  // Рендерим выбранный мануал
   manualsData.filter(m => m.name === name).forEach(manual => {
     renderSingleManual(manual, manualContainer);
   });
 }
 
+// Функция рендеринга одного мануала
 function renderSingleManual(manual, container, hidePdfButton = false) {
   const block = document.createElement("div"); 
   block.className = "block";
   block.dataset.manualName = manual.name;
   
-  loadPointsForManual(manual.name);
-  
+  // Кликабельная область названия мануала
   const labelDiv = document.createElement("div");
   labelDiv.className = "manual-label";
-  
-  const leftPart = document.createElement("div");
-  leftPart.className = "manual-label-left";
-  leftPart.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
-  leftPart.onclick = (e) => {
+  labelDiv.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
+  labelDiv.onclick = (e) => {
     e.stopPropagation();
     if (manual.image && manual.image.trim() !== '') {
       window.open(manual.image, '_blank');
@@ -1423,30 +1032,15 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
     }
   };
   
-  const actionButtons = document.createElement("div");
-  actionButtons.className = "manual-label-actions";
-  
-  const pointModeBtn = document.createElement("button");
-  pointModeBtn.className = "point-mode-btn";
-  pointModeBtn.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
-  pointModeBtn.title = "Включить режим добавления точек";
-  pointModeBtn.onclick = (e) => {
-    e.stopPropagation();
-    togglePointMode(manual.name, pointModeBtn);
-  };
-  
-  actionButtons.appendChild(pointModeBtn);
-  
-  labelDiv.appendChild(leftPart);
-  labelDiv.appendChild(actionButtons);
-  
   const img = document.createElement("img");
-  img.className = "top-image";
+  img.className = "top-image clickable-image";
   img.src = manual.image;
   img.onerror = () => { img.src = 'https://via.placeholder.com/400x200?text=No+Image'; };
   
   const buttonsContainer = document.createElement("div");
   buttonsContainer.className = "buttons-container";
+  
+  img.onclick = () => { buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex"; };
   
   block.appendChild(labelDiv);
   block.appendChild(img);
@@ -1454,27 +1048,14 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
   
   manual.parts.forEach((part, index) => {
     const singleCode = extractSingleCode(part);
-    if (singleCode) { createPartButton(buttonsContainer, singleCode.number, singleCode.code); } 
-    else if (isCompositePart(part)) { parseCompositeParts(part).forEach(parsedPart => { createPartButton(buttonsContainer, parsedPart.number, parsedPart.code); }); } 
-    else { createPartButton(buttonsContainer, part, (index + 1).toString()); }
+    if (singleCode) { createPartButton(buttonsContainer, singleCode.number, singleCode.code, img); } 
+    else if (isCompositePart(part)) { parseCompositeParts(part).forEach(parsedPart => { createPartButton(buttonsContainer, parsedPart.number, parsedPart.code, img); }); } 
+    else { createPartButton(buttonsContainer, part, (index + 1).toString(), img); }
   });
-  
   container.appendChild(block);
-  
-  setupImageClickHandler(img, manual.name, buttonsContainer);
-  
-  if (img.complete) {
-    drawPointsOnImage(manual.name);
-    updatePointsListInUI(manual.name);
-  } else {
-    img.onload = () => {
-      drawPointsOnImage(manual.name);
-      updatePointsListInUI(manual.name);
-    };
-  }
 }
 
-function createPartButton(container, partNumber, label) {
+function createPartButton(container, partNumber, label, image) {
   const btn = document.createElement("div");
   btn.className = "btn";
   btn.innerHTML = `<span>${label}</span><span class="detail-number">${partNumber}</span>`;
@@ -1490,6 +1071,7 @@ function createPartButton(container, partNumber, label) {
       return;
     }
     toggleDetail(btn);
+    if (image) { image.classList.add("highlight-image"); setTimeout(() => image.classList.remove("highlight-image"), 800); }
   };
   container.appendChild(btn);
 }
@@ -1532,6 +1114,7 @@ function clearSearch() {
   searchNav.style.display = "none";
 }
 
+// ИСПРАВЛЕНА ФУНКЦИЯ ПОИСКА - БЕЗ КНОПОК PDF
 searchInput.oninput = e => {
   const searchTerm = e.target.value.trim();
   searchResults = []; 
@@ -1547,9 +1130,12 @@ searchInput.oninput = e => {
   isSearchMode = true;
   searchNav.style.display = "flex";
   
+  // Очищаем контейнер
   manualContainer.innerHTML = "";
   
+  // Перебираем все мануалы
   manualsData.forEach(manual => {
+    // Проверяем, есть ли в этом мануале искомый номер
     const hasMatch = manual.parts.some(part => {
       const singleCode = extractSingleCode(part);
       if (singleCode && singleCode.number.includes(searchTerm)) return true;
@@ -1559,11 +1145,14 @@ searchInput.oninput = e => {
       return part.includes(searchTerm);
     });
     
+    // Если есть совпадение - рендерим этот мануал (БЕЗ PDF кнопки)
     if (hasMatch) {
+      // НЕ добавляем PDF кнопку при поиске
       renderSingleManual(manual, manualContainer, true);
     }
   });
   
+  // После рендеринга подсвечиваем найденные элементы
   setTimeout(() => {
     document.querySelectorAll(".detail-number").forEach(el => {
       if (el.textContent.includes(searchTerm)) {
