@@ -158,27 +158,72 @@ header {
   font-size:16px;
   font-weight:600;
   border-radius:6px 6px 0 0;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
   display: flex;
   align-items: center;
   justify-content: space-between;
   user-select: none;
-  text-decoration: none;
 }
-.manual-label:hover {
+
+.manual-label-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.manual-label-left:hover {
   background:#2d3a4a;
+  border-radius: 4px;
 }
-.manual-label:active {
+
+.manual-label-left:active {
   transform: scale(0.99);
 }
+
+.manual-label-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.manual-label-actions button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.manual-label-actions button:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.manual-label-actions button:active {
+  transform: scale(0.95);
+}
+
+.image-open-btn {
+  background: rgba(255,255,255,0.15) !important;
+}
+
+.point-mode-btn {
+  background: rgba(255,255,255,0.1) !important;
+}
+
+.point-mode-btn.active {
+  background: #dc143c !important;
+  color: white;
+}
+
 .manual-label i {
   font-size: 14px;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-.manual-label:hover i {
-  opacity: 1;
 }
 
 .top-image {
@@ -661,6 +706,24 @@ header {
   white-space: nowrap;
 }
 
+.point-mode-indicator {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #dc143c;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 40px;
+  font-size: 13px;
+  z-index: 2000;
+  display: none;
+  gap: 8px;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  white-space: nowrap;
+}
+
 @keyframes fadeOut {
   0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
   15% { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -740,31 +803,18 @@ header {
   </div>
 </div>
 
+<!-- Индикатор режима добавления точек -->
+<div class="point-mode-indicator" id="pointModeIndicator">
+  <i class="fa-solid fa-plus-circle"></i>
+  <span>Режим добавления точек активен. Нажмите на схему...</span>
+</div>
+
 <script>
-// Конфигурация Google Sheets
-const AUTH_SPREADSHEET_ID = '1-yiVdZYa6wJdupTiuiHvI_ht3Vu73RUjyCehZqs2cJ4';
-const AUTH_SHEET_NAME = '1';
-const AUTH_API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
-const API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
-const SPREADSHEET_ID = '1v-R394u6sKzSdvmkh9qsbqhfkNZEi5lIXwo8BdT_lhQ';
-const MANUALS_RANGE = 'MANUALS!A:CC';
-const MANUAL_RANGE = 'MANUAL!A:B';
-const STORE_RANGE = 'STORE!A:D';
-const BB_RANGE = 'BB!A:D';
-const KH_RANGE = 'KH!A:D';
-const SKYMALL_RANGE = 'SKYMALL!A:D';
-const CURRENT_SITE = 'https://smart-bowling.github.io/MANUALS-SMART/';
-
-let currentUser = null;
-let manualsData = [];
-let stockData = {};
-let searchResults = [];
-let currentIndex = 0;
-let isSearchMode = false;
-
 // ========== СИСТЕМА ДОБАВЛЕНИЯ ТОЧЕК ==========
 // Хранилище точек для каждого мануала
 let allPoints = {}; // { manualName: [{ x, y, number, percentX, percentY }] }
+// Активный режим для каждого мануала
+let activePointMode = {}; // { manualName: true/false }
 
 // Загрузка сохраненных точек
 function loadPointsForManual(manualName) {
@@ -803,12 +853,11 @@ function deletePointFromManual(manualName, index) {
         allPoints[manualName].splice(index, 1);
         savePointsForManual(manualName);
         drawPointsOnImage(manualName);
-        // Обновляем список точек в кнопке
         updatePointsListInUI(manualName);
     }
 }
 
-// Рисование точек на канвасе
+// Рисование точек на канвасе (РАЗМЕР В 2 РАЗА МЕНЬШЕ)
 function drawPointsOnImage(manualName) {
     const block = document.querySelector(`.block[data-manual-name="${manualName}"]`);
     if (!block) return;
@@ -825,14 +874,12 @@ function drawPointsOnImage(manualName) {
         wrapper.appendChild(canvas);
     }
     
-    // Ждем загрузки изображения для правильных размеров
     if (!img.complete || img.naturalWidth === 0) {
         img.onload = () => drawPointsOnImage(manualName);
         return;
     }
     
     const rect = wrapper.getBoundingClientRect();
-    const imgRect = img.getBoundingClientRect();
     
     canvas.width = rect.width;
     canvas.height = rect.height;
@@ -847,25 +894,23 @@ function drawPointsOnImage(manualName) {
     points.forEach(point => {
         const x = point.x * canvas.width;
         const y = point.y * canvas.height;
-        const radius = Math.max(12, Math.min(24, canvas.width / 50));
+        // РАДИУС В 2 РАЗА МЕНЬШЕ: было 12-24, стало 6-12
+        const radius = Math.max(6, Math.min(12, canvas.width / 100));
         
-        // Внешнее свечение
         ctx.beginPath();
-        ctx.arc(x, y, radius + 3, 0, 2 * Math.PI);
+        ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
         ctx.fillStyle = 'rgba(220, 20, 60, 0.2)';
         ctx.fill();
         
-        // Основной кружок
         ctx.beginPath();
         ctx.arc(x, y, radius, 0, 2 * Math.PI);
         ctx.fillStyle = '#dc143c';
         ctx.fill();
         ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
         
-        // Номер детали
-        ctx.font = `bold ${Math.floor(radius * 1.1)}px "Segoe UI"`;
+        ctx.font = `bold ${Math.floor(radius * 1)}px "Segoe UI"`;
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -873,7 +918,7 @@ function drawPointsOnImage(manualName) {
     });
 }
 
-// Обновление списка точек в UI (добавляем кнопку управления)
+// Обновление списка точек в UI
 function updatePointsListInUI(manualName) {
     const block = document.querySelector(`.block[data-manual-name="${manualName}"]`);
     if (!block) return;
@@ -881,7 +926,6 @@ function updatePointsListInUI(manualName) {
     const buttonsContainer = block.querySelector('.buttons-container');
     if (!buttonsContainer) return;
     
-    // Удаляем старую секцию точек если есть
     const oldPointsSection = block.querySelector('.points-management-section');
     if (oldPointsSection) oldPointsSection.remove();
     
@@ -940,6 +984,36 @@ function updatePointsListInUI(manualName) {
     buttonsContainer.appendChild(pointsSection);
 }
 
+// Включение/выключение режима добавления точек
+function togglePointMode(manualName, btnElement) {
+    if (activePointMode[manualName]) {
+        // Выключаем режим
+        activePointMode[manualName] = false;
+        btnElement.classList.remove('active');
+        btnElement.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
+        document.getElementById('pointModeIndicator').style.display = 'none';
+        showPointToast('Режим добавления точек выключен');
+    } else {
+        // Включаем режим
+        activePointMode[manualName] = true;
+        btnElement.classList.add('active');
+        btnElement.innerHTML = '<i class="fa-solid fa-dot-circle"></i>';
+        document.getElementById('pointModeIndicator').style.display = 'flex';
+        showPointToast('Режим добавления точек включен. Нажмите на схему, чтобы добавить точку');
+        
+        // Автоматически выключаем через 30 секунд
+        setTimeout(() => {
+            if (activePointMode[manualName]) {
+                activePointMode[manualName] = false;
+                btnElement.classList.remove('active');
+                btnElement.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
+                document.getElementById('pointModeIndicator').style.display = 'none';
+                showPointToast('Режим добавления точек автоматически выключен');
+            }
+        }, 30000);
+    }
+}
+
 // Показать уведомление
 function showPointToast(message) {
     const existing = document.querySelector('.point-toast');
@@ -953,11 +1027,6 @@ function showPointToast(message) {
 
 // Настройка обработчика кликов на изображении
 function setupImageClickHandler(img, manualName) {
-    // Убираем старый обработчик если был
-    if (img.hasAttribute('data-points-enabled')) return;
-    img.setAttribute('data-points-enabled', 'true');
-    
-    // Создаем обертку если ее нет
     let wrapper = img.parentElement;
     if (!wrapper.classList.contains('image-wrapper')) {
         const newWrapper = document.createElement('div');
@@ -968,6 +1037,12 @@ function setupImageClickHandler(img, manualName) {
     }
     
     const handleAddPoint = (clientX, clientY) => {
+        // Добавляем точку ТОЛЬКО если включен режим
+        if (!activePointMode[manualName]) {
+            showPointToast('⚠️ Сначала включите режим добавления точек (кнопка слева от названия)');
+            return;
+        }
+        
         const rect = wrapper.getBoundingClientRect();
         const percentX = (clientX - rect.left) / rect.width;
         const percentY = (clientY - rect.top) / rect.height;
@@ -1005,7 +1080,6 @@ function setupImageClickHandler(img, manualName) {
         handleAddPoint(touch.clientX, touch.clientY);
     });
     
-    // При загрузке изображения рисуем точки
     if (img.complete) {
         drawPointsOnImage(manualName);
     } else {
@@ -1013,6 +1087,27 @@ function setupImageClickHandler(img, manualName) {
     }
 }
 // ========== КОНЕЦ СИСТЕМЫ ТОЧЕК ==========
+
+// Конфигурация Google Sheets
+const AUTH_SPREADSHEET_ID = '1-yiVdZYa6wJdupTiuiHvI_ht3Vu73RUjyCehZqs2cJ4';
+const AUTH_SHEET_NAME = '1';
+const AUTH_API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
+const API_KEY = 'AIzaSyAXL0Hsfxy-g-AgYhnivj4x9gCB2rrtF-0';
+const SPREADSHEET_ID = '1v-R394u6sKzSdvmkh9qsbqhfkNZEi5lIXwo8BdT_lhQ';
+const MANUALS_RANGE = 'MANUALS!A:CC';
+const MANUAL_RANGE = 'MANUAL!A:B';
+const STORE_RANGE = 'STORE!A:D';
+const BB_RANGE = 'BB!A:D';
+const KH_RANGE = 'KH!A:D';
+const SKYMALL_RANGE = 'SKYMALL!A:D';
+const CURRENT_SITE = 'https://smart-bowling.github.io/MANUALS-SMART/';
+
+let currentUser = null;
+let manualsData = [];
+let stockData = {};
+let searchResults = [];
+let currentIndex = 0;
+let isSearchMode = false;
 
 const searchNav = document.getElementById("searchNav");
 const manualContainer = document.getElementById("manualContainer");
@@ -1305,16 +1400,24 @@ function renderManualsByName(name) {
   });
 }
 
-// МОДИФИЦИРОВАННАЯ ФУНКЦИЯ - добавляем поддержку точек
+// МОДИФИЦИРОВАННАЯ ФУНКЦИЯ - добавляем кнопку режима точек
 function renderSingleManual(manual, container, hidePdfButton = false) {
   const block = document.createElement("div"); 
   block.className = "block";
   block.dataset.manualName = manual.name;
   
+  // Загружаем точки для этого мануала
+  loadPointsForManual(manual.name);
+  
+  // Создаем панель с названием и кнопками
   const labelDiv = document.createElement("div");
   labelDiv.className = "manual-label";
-  labelDiv.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
-  labelDiv.onclick = (e) => {
+  
+  // Левая часть - название (кликабельная для открытия картинки)
+  const leftPart = document.createElement("div");
+  leftPart.className = "manual-label-left";
+  leftPart.innerHTML = `${manual.name} <i class="fa-regular fa-image"></i>`;
+  leftPart.onclick = (e) => {
     e.stopPropagation();
     if (manual.image && manual.image.trim() !== '') {
       window.open(manual.image, '_blank');
@@ -1322,6 +1425,40 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
       alert('Изображение отсутствует');
     }
   };
+  
+  // Правая часть - кнопки
+  const actionButtons = document.createElement("div");
+  actionButtons.className = "manual-label-actions";
+  
+  // Кнопка режима добавления точек (слева от кнопки открытия картинки)
+  const pointModeBtn = document.createElement("button");
+  pointModeBtn.className = "point-mode-btn";
+  pointModeBtn.innerHTML = '<i class="fa-regular fa-dot-circle"></i>';
+  pointModeBtn.title = "Включить режим добавления точек";
+  pointModeBtn.onclick = (e) => {
+    e.stopPropagation();
+    togglePointMode(manual.name, pointModeBtn);
+  };
+  
+  // Кнопка открытия картинки
+  const openImageBtn = document.createElement("button");
+  openImageBtn.className = "image-open-btn";
+  openImageBtn.innerHTML = '<i class="fa-regular fa-image"></i>';
+  openImageBtn.title = "Открыть картинку в новом окне";
+  openImageBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (manual.image && manual.image.trim() !== '') {
+      window.open(manual.image, '_blank');
+    } else {
+      alert('Изображение отсутствует');
+    }
+  };
+  
+  actionButtons.appendChild(pointModeBtn);
+  actionButtons.appendChild(openImageBtn);
+  
+  labelDiv.appendChild(leftPart);
+  labelDiv.appendChild(actionButtons);
   
   const img = document.createElement("img");
   img.className = "top-image clickable-image";
@@ -1331,7 +1468,12 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
   const buttonsContainer = document.createElement("div");
   buttonsContainer.className = "buttons-container";
   
-  img.onclick = () => { buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex"; };
+  // Старый обработчик клика по картинке для скрытия/показа кнопок теперь не мешает
+  // Но мы оставляем его отдельно
+  img.onclick = (e) => {
+    e.stopPropagation();
+    buttonsContainer.style.display = buttonsContainer.style.display === "flex" ? "none" : "flex";
+  };
   
   block.appendChild(labelDiv);
   block.appendChild(img);
@@ -1346,10 +1488,7 @@ function renderSingleManual(manual, container, hidePdfButton = false) {
   
   container.appendChild(block);
   
-  // Загружаем точки для этого мануала
-  loadPointsForManual(manual.name);
-  
-  // Настраиваем обработчик кликов на изображении
+  // Настраиваем обработчик кликов на изображении для добавления точек
   setupImageClickHandler(img, manual.name);
   
   // Рисуем точки после загрузки изображения
